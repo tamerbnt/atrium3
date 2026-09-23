@@ -27,12 +27,8 @@ export function detectDeviceCapabilities(): DeviceProfile {
   const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   // 2. Mobile detection (includes phones, tablets, and responsive testing viewports < 1024px)
-  const userAgent = navigator.userAgent.toLowerCase();
-  const isTouchDevice =
-    'ontouchstart' in window || navigator.maxTouchPoints > 0;
-  const isMobileUA =
-    /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent);
-  const isMobile = isMobileUA || window.innerWidth < 1024;
+  // When window width is >= 1024px, always treat as desktop so resizing or DevTools testing doesn't stick
+  const isMobile = window.innerWidth < 1024;
 
   // 3. WebGL Support check (support WebGL2 and WebGL)
   let hasWebGL = true;

@@ -604,7 +604,7 @@ export default function Scene3D({
         }}
         dpr={dpr}
         shadows={false} // Performance: Zero dynamic shadow maps
-        frameloop={isInView ? 'always' : 'never'} // Cap render loop: pause when not in view
+        frameloop={isInView ? 'always' : 'demand'} // Cap render loop: pause continuous RAF when not in view, render on demand
         gl={{
           antialias: !isMobile,
           powerPreference: 'high-performance',

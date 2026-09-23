@@ -55,7 +55,7 @@ export function ClosingWordmark({ lang: _lang = 'en' }: ClosingWordmarkProps) {
     <section
       id="section-closing-wordmark"
       ref={containerRef}
-      className="relative w-full overflow-hidden bg-stone-950 border-t border-stone-800/80 py-24 sm:py-32 lg:py-40 flex flex-col items-center justify-center select-none"
+      className="relative z-[110] w-full overflow-hidden bg-stone-950 border-t border-stone-800/80 py-24 sm:py-32 lg:py-40 flex flex-col items-center justify-center select-none shadow-[0_-30px_70px_rgba(0,0,0,0.95)]"
       aria-label="Atrium Brand Statement"
     >
       {/* ------------------------------------------------------------- */}

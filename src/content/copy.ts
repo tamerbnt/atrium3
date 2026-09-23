@@ -137,6 +137,24 @@ export interface LandingContent {
     conclusionSentence: string;
     locationBadge: string;
   };
+  faq: {
+    tag: string;
+    headlinePrimary: string;
+    headlineAccent: string;
+    headline: string;
+    subline: string;
+    items: Array<{
+      q: string;
+      a: string;
+    }>;
+    lastItemTransition: string;
+    lastItemCtaText: string;
+    stillHaveQuestions: string;
+    chatOnWhatsApp: string;
+    whatsappMessage: string;
+    ctaButton: string;
+    ctaSubtext: string;
+  };
   finalCta: {
     tag: string;
     headlinePrimary: string;
@@ -508,6 +526,50 @@ export const CONTENT: Record<Language, LandingContent> = {
         'The result is an operating system built from firsthand operational truth: resilient, offline-first, and structured around how businesses in our region actually work.',
       locationBadge: 'Engineered in Algiers by From Scratch • Grounded in operational research',
     },
+    faq: {
+      tag: 'Questions',
+      headlinePrimary: 'Still deciding?',
+      headlineAccent: "Here's what you need to know.",
+      headline: "Still deciding? Here's what you need to know.",
+      subline: 'Clear, factual answers to eliminate hesitation before your trial.',
+      items: [
+        {
+          q: 'Do I need special hardware to get started?',
+          a: 'No. Atrium runs on standard laptops, desktop PCs, and tablets you already have on your counter. Your existing thermal receipt printers, cash drawers, and USB barcode scanners connect out of the box with zero proprietary terminals or technician visits required before tomorrow’s rush.',
+        },
+        {
+          q: 'What happens if my internet goes down?',
+          a: 'Daily operations never pause. Atrium is engineered with an offline-first architecture, so checkouts, pass scans, and shift logs work uninterrupted on your local device. The moment connectivity returns, all records sync automatically to the cloud without duplicates or manual reconciliation.',
+        },
+        {
+          q: 'Can I try it before paying?',
+          a: 'Yes. You get 14 days of full access with zero card required. You test Atrium directly on your active registers and daily workflow with no long-term commitment and can cancel anytime.',
+        },
+        {
+          q: "What if my business doesn't fit one category exactly?",
+          a: 'The six categories are starting points, not rigid boundaries. If your gym sells protein shakes, or your salon combines booked chairs with retail products, you can combine modules easily. If your workflow has specific edge cases, our engineering team configures the setup with you.',
+        },
+        {
+          q: 'Is my business data safe?',
+          a: 'Yes. Your active records are saved locally for instant offline availability and mirrored to a dedicated, encrypted Supabase cloud database with automated offsite backups. Your financial logs, turnover, and client contacts belong strictly to you and are never shared or monetized.',
+        },
+        {
+          q: 'What happens when the trial ends?',
+          a: 'There are no surprise charges because we never take payment details upfront. At the end of 14 days, your configured data and history remain saved; you simply select the plan (Starter, Pro, or Enterprise) that fits your locations to continue. If you decide not to continue, you can export your records at any time.',
+        },
+        {
+          q: 'I currently track everything on WhatsApp and Excel — how do I actually switch?',
+          a: 'Setup takes under two minutes: you can start fresh immediately by entering your active services, staff logins, and pricing. If you have an existing Excel customer list or inventory sheet, send it to us directly on WhatsApp and our team will format and seed your workspace before your next shift.',
+        },
+      ],
+      lastItemTransition: 'Ready to run your operations with certainty?',
+      lastItemCtaText: 'Start 14-Day Free Trial',
+      stillHaveQuestions: 'Still have questions not covered here?',
+      chatOnWhatsApp: 'Chat directly with an engineer on WhatsApp',
+      whatsappMessage: 'Hello Atrium team, I have a question about how Atrium works for my business.',
+      ctaButton: 'Start Free Trial',
+      ctaSubtext: '14 days of full access • Zero card required • Setup in under 2 minutes',
+    },
     finalCta: {
       tag: 'Access',
       headlinePrimary: 'Stop running your business',
@@ -878,6 +940,50 @@ export const CONTENT: Record<Language, LandingContent> = {
         'Le résultat est un système d’exploitation ancré dans la réalité opérationnelle : robuste, autonome et calqué sur la façon dont nos entreprises travaillent.',
       locationBadge: 'Conçu à Alger par From Scratch • Issu de la recherche opérationnelle directe',
     },
+    faq: {
+      tag: 'Questions',
+      headlinePrimary: 'Encore un doute ?',
+      headlineAccent: 'Voici ce que vous devez savoir.',
+      headline: 'Encore un doute ? Voici ce que vous devez savoir.',
+      subline: 'Des réponses concrètes pour lever les dernières hésitations avant votre essai.',
+      items: [
+        {
+          q: 'Ai-je besoin d’un matériel spécifique pour démarrer ?',
+          a: 'Non. Atrium fonctionne sur vos ordinateurs, PC portables et tablettes habituels. Vos imprimantes thermiques de caisse, tiroirs et douchettes de codes-barres standards se connectent directement, sans terminal propriétaire ni visite de technicien avant le coup de feu de demain.',
+        },
+        {
+          q: 'Que se passe-t-il en cas de coupure internet ?',
+          a: 'Vos opérations continuent sans interruption. Atrium repose sur une architecture pensée d’abord hors-ligne : encaissements, scans d’accès et écritures de caisse restent actifs localement. Dès le rétablissement de la connexion, toutes les données se synchronisent automatiquement sans doublons.',
+        },
+        {
+          q: 'Puis-je tester avant de payer ?',
+          a: 'Oui. Vous bénéficiez de 14 jours d’accès complet sans aucune carte bancaire requise. Vous testez Atrium directement sur vos caisses réelles et votre rythme de travail quotidien, sans engagement et annulable à tout moment.',
+        },
+        {
+          q: 'Et si mon activité ne rentre pas exactement dans une seule catégorie ?',
+          a: 'Les six catégories sont des bases modulaires, pas des cases rigides. Si votre salle de sport vend des compléments ou si votre salon associe soins sur rendez-vous et vente de produits, vous combinez librement ces fonctions. Pour les cas particuliers, nous paramétrons l’environnement avec vous.',
+        },
+        {
+          q: 'Mes données d’entreprise sont-elles en sécurité ?',
+          a: 'Oui. Vos données actives sont conservées localement pour un accès immédiat hors-ligne et répliquées sur une base cloud Supabase chiffrée avec sauvegardes automatisées. Votre chiffre d’affaires, vos fichiers clients et vos plannings vous appartiennent exclusivement et ne sont jamais partagés.',
+        },
+        {
+          q: 'Que se passe-t-il à la fin de l’essai gratuit ?',
+          a: 'Aucun prélèvement surprise, car nous ne demandons aucune carte bancaire au départ. Au terme des 14 jours, votre configuration et votre historique restent intacts ; il vous suffit de choisir le forfait adapté (Starter, Pro ou Enterprise) pour continuer. Si vous ne poursuivez pas, vous pouvez exporter vos données librement.',
+        },
+        {
+          q: 'Je gère actuellement tout sur WhatsApp et Excel — comment passer à Atrium ?',
+          a: 'La mise en route prend moins de deux minutes : vous pouvez démarrer immédiatement en créant vos prestations, comptes d’équipe et tarifs. Si vous disposez déjà d’un fichier Excel de clients ou de stocks, envoyez-le nous simplement sur WhatsApp et notre équipe prépare votre espace avant votre prochain service.',
+        },
+      ],
+      lastItemTransition: 'Prêt à piloter votre activité avec certitude ?',
+      lastItemCtaText: 'Démarrer l’Essai Gratuit de 14 Jours',
+      stillHaveQuestions: 'Vous avez encore une question spécifique ?',
+      chatOnWhatsApp: 'Discuter avec un ingénieur sur WhatsApp',
+      whatsappMessage: 'Bonjour l’équipe Atrium, j’ai une question sur le fonctionnement du logiciel pour mon activité.',
+      ctaButton: 'Démarrer l’Essai Gratuit',
+      ctaSubtext: '14 jours d’accès complet • Sans carte bancaire • Prêt en moins de 2 minutes',
+    },
     finalCta: {
       tag: 'Accès',
       headlinePrimary: 'Cessez de gérer votre activité',
@@ -1246,6 +1352,50 @@ export const CONTENT: Record<Language, LandingContent> = {
       conclusionSentence:
         'والنتيجة هي نظام تشغيل تجاري مستمد من الحقيقة الميدانية: فائق المرونة، مصمم ليعمل دون إنترنت، ومبني تماماً وفق الكيفية التي تدير بها مؤسساتنا أعمالها في الواقع.',
       locationBadge: 'صنع في الجزائر من طرف فروم سكراتش • صُقل بالبحث الميداني المباشر',
+    },
+    faq: {
+      tag: 'الأسئلة الشائعة',
+      headlinePrimary: 'ما زلت تفكر؟',
+      headlineAccent: 'إليك كل ما تحتاج معرفته.',
+      headline: 'ما زلت تفكر؟ إليك كل ما تحتاج معرفته.',
+      subline: 'إجابات مباشرة وميدانية لإزالة أي تردد قبل بدء تجربتك المجانية.',
+      items: [
+        {
+          q: 'هل أحتاج إلى أجهزة أو عتاد خاص للبدء؟',
+          a: 'لا. يعمل أتريوم مباشرة على أجهزة الكمبيوتر، الحواسيب المحمولة والألواح الذكية المتوفرة لديك بالفعل على مكتب الاستقبال. طابعات الإيصالات الحرارية، أدراج الكاشير وقارئات الباركود القياسية تتصل بسلاسة دون الحاجة لشراء صناديق مقفلة أو انتظار فنيين لتركيبها قبل زحمة الغد.',
+        },
+        {
+          q: 'ماذا يحدث إذا انقطع الاتصال بالإنترنت؟',
+          a: 'عملياتك اليومية لا تتوقف أبداً. صُمم أتريوم بهندسة تعمل دون اتصال بالإنترنت أولاً؛ حيث تستمر عمليات البيع، مسح بطاقات الدخول وتدوين السجلات محلياً على جهازك. وبمجرد عودة الاتصال، تُزامن كافة العمليات تلقائياً مع السحابة دون تكرار أو تدقيق يدوي.',
+        },
+        {
+          q: 'هل يمكنني تجربة النظام قبل الدفع؟',
+          a: 'نعم. ستحصل على 14 يوماً من الوصول الكامل دون طلب أي بطاقة ائتمانية. يمكنك تجربة أتريوم مباشرة على مبيعاتك الحقيقية وسير عملك اليومي دون أي التزام مسبق مع إمكانية الإلغاء في أي وقت.',
+        },
+        {
+          q: 'ماذا لو كان نشاطي لا يندرج بدقة تحت فئة واحدة؟',
+          a: 'المجالات الستة هي نقاط انطلاق مرنة وليست قوالب مغلقة. إذا كانت قاعتك الرياضية تبيع مشروبات ومكملات، أو كان صالونك يجمع بين حجز المواعيد وبيع منتجات التجميل، يمكنك دمج الوحدات بسهولة. وإذا كانت لديك خصوصية معقدة، سنساعدك في ضبط التهيئة معاً.',
+        },
+        {
+          q: 'هل بيانات عملي ومعاملاتي في أمان؟',
+          a: 'نعم. تُحفظ بياناتك محلياً على جهازك لتكون متاحة فوراً حتى دون إنترنت، وتُنسخ باستمرار في قاعدة بيانات سحابية مشفرة (Supabase) مع نسخ احتياطي دوري. أرقام مبيعاتك، قوائم زبائنك وسجلات موظفيك ملكك وحدك ولا تتم مشاركتها أو استغلالها إطلاقاً.',
+        },
+        {
+          q: 'ما الذي يحدث عند انتهاء فترة التجربة المجانية؟',
+          a: 'لن تواجه أي اقتطاع مفاجئ لأننا لا نطلب بيانات بنكية مسبقاً. عند اكتمال الـ 14 يوماً، تبقى إعداداتك وسجلاتك محفوظة بالكامل؛ وكل ما عليك هو اختيار الخطة المناسبة (ستارتر، برو، أو إنتربرايز) لمتابعة العمل. وإذا قررت عدم المتابعة، يمكنك تصدير بياناتك في أي وقت.',
+        },
+        {
+          q: 'أدير كل شيء حالياً عبر واتساب وإكسل — كيف أنتقل عملياً إلى أتريوم؟',
+          a: 'الإعداد يستغرق أقل من دقيقتين: يمكنك البدء فوراً بإدخال خدماتك، حسابات فريقك وأسعارك. وإذا كان لديك جدول إكسل بقوائم الزبائن أو المخزون، يمكنك إرساله لنا مباشرة عبر واتساب وسيقوم فريقنا بتهيئته وإدراجه في حسابك قبل بداية الوردية التالية.',
+        },
+      ],
+      lastItemTransition: 'مستعد لإدارة نشاطك التجاري بكل وضوح وثقة؟',
+      lastItemCtaText: 'ابدأ تجربتك المجانية لمدة 14 يوماً',
+      stillHaveQuestions: 'هل لديك سؤال آخر غير مذكور هنا؟',
+      chatOnWhatsApp: 'تحدث مباشرة مع مهندس عبر واتساب',
+      whatsappMessage: 'مرحباً فريق أتريوم، لدي استفسار بخصوص عمل النظام مع نشاطي التجاري.',
+      ctaButton: 'ابدأ التجربة المجانية',
+      ctaSubtext: '14 يوماً وصول كامل • بدون بطاقة ائتمانية • إعداد في أقل من دقيقتين',
     },
     finalCta: {
       tag: 'البدء',

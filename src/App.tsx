@@ -45,7 +45,15 @@ export default function App() {
   useEffect(() => {
     setIsHydrated(true);
     const updateProfile = () => {
-      setDeviceProfile(detectDeviceCapabilities());
+      const nextProfile = detectDeviceCapabilities();
+      setDeviceProfile(nextProfile);
+      // When viewport is desktop and hero is in view, ensure isInView is immediately true
+      if (!nextProfile.isMobile) {
+        const scrollY = window.scrollY || document.documentElement.scrollTop;
+        if (scrollY < window.innerHeight) {
+          setIsInView(true);
+        }
+      }
     };
     updateProfile();
 
@@ -54,25 +62,28 @@ export default function App() {
   }, []);
 
   // IntersectionObserver to pause R3F render loop when 3D hero is out of view
+  // Reliably observes the persistent #section-hero element across all viewport switches
   useEffect(() => {
-    const container = heroContainerRef.current;
-    if (!container) return;
+    const heroElement = document.getElementById('section-hero') || heroContainerRef.current;
+    if (!heroElement) return;
 
     const observer = new IntersectionObserver(
       (entries) => {
         const entry = entries[0];
-        setIsInView(entry.isIntersecting);
+        if (entry) {
+          setIsInView(entry.isIntersecting);
+        }
       },
       {
         threshold: 0.05, // Freeze render loop when hero is off-screen
       }
     );
 
-    observer.observe(container);
+    observer.observe(heroElement);
     return () => {
       observer.disconnect();
     };
-  }, []);
+  }, [isHydrated, deviceProfile.isMobile]);
 
   const dpr = typeof window !== 'undefined' ? Math.min(window.devicePixelRatio || 1, 2) : 1;
 
@@ -82,6 +93,7 @@ export default function App() {
     <div ref={heroContainerRef} className="w-full h-full relative">
       {activeMode === '3d' ? (
         <Scene3D
+          key="atrium-3d-scene"
           isMobile={false}
           isInView={isInView}
           scrollProgress={0}
@@ -95,7 +107,9 @@ export default function App() {
         />
       )}
     </div>
-  ) : null;
+  ) : (
+    <div ref={heroContainerRef} className="w-full h-full relative" />
+  );
 
   const [showDebugHud, setShowDebugHud] = useState(false);
 
