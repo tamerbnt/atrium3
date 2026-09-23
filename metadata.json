@@ -1,0 +1,6 @@
+{
+  "name": "Atrium — Business Management Platform",
+  "description": "Multi-vertical business management platform across 6 commerce categories. Resilient offline-first architecture, multi-branch clarity, and proactive operations by Stoa Studio.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
