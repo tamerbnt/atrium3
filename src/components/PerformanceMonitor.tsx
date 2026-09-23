@@ -43,7 +43,7 @@ export default function PerformanceMonitor({
       aria-label="Performance Telemetry"
       className="fixed bottom-4 right-4 z-50 flex flex-col items-end pointer-events-auto"
     >
-      <div className="bg-[#12141a]/95 border border-stone-800 rounded-lg shadow-2xl backdrop-blur-md overflow-hidden text-xs text-stone-300 w-72 sm:w-80 transition-all">
+      <div className="bg-black/95 border border-stone-800 rounded-lg shadow-2xl backdrop-blur-md overflow-hidden text-xs text-stone-300 w-72 sm:w-80 transition-all">
         {/* Header Bar */}
         <div className="px-3.5 py-2.5 bg-stone-900/80 border-b border-stone-800 flex items-center justify-between">
           <div className="flex items-center gap-2">

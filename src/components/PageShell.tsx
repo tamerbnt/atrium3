@@ -16,6 +16,12 @@ import {
   Calendar,
   Layers,
   Sparkles,
+  AlertCircle,
+  Compass,
+  Activity,
+  CreditCard,
+  Menu,
+  X,
 } from 'lucide-react';
 import { CONTENT, Language } from '../content/copy';
 import { useLenis } from './SmoothScroll';
@@ -24,6 +30,8 @@ import { SpotlightCard } from './SpotlightCard';
 import { AnimatedCounter } from './AnimatedCounter';
 import { BeforeAfterSlider } from './BeforeAfterSlider';
 import { PinnedHowItWorks } from './PinnedHowItWorks';
+import { SectionHeader } from './SectionHeader';
+import { ClosingWordmark } from './ClosingWordmark';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -55,6 +63,7 @@ export default function PageShell({
   const [activeKpiFilter, setActiveKpiFilter] = useState<'all' | 'sales' | 'staff' | 'inventory'>('all');
   const [isScrolled, setIsScrolled] = useState(false);
   const [activeSectionId, setActiveSectionId] = useState<string>('section-hero');
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const { scrollTo: lenisScrollTo } = useLenis();
 
@@ -250,10 +259,15 @@ export default function PageShell({
         {/* Seamless deep charcoal gradient foundation */}
         <div className="absolute inset-0 bg-black" />
 
-        {/* Primary Hero Warm Terracotta Glow (Anchored top-right beneath 3D robot cluster) */}
+        {/* Primary Hero Warm Terracotta Glow (Centered on mobile, framed on right for desktop) */}
         <div
           ref={heroGlowRef}
-          className="absolute top-[-8vw] right-[-6vw] w-[600px] sm:w-[900px] h-[600px] sm:h-[900px] rounded-full bg-[#b85438]/14 blur-[140px] will-change-transform"
+          className="absolute top-[3vw] sm:top-[5vw] left-1/2 -translate-x-1/2 lg:translate-x-0 lg:left-auto lg:right-[12vw] w-[460px] sm:w-[680px] lg:w-[1050px] h-[460px] sm:h-[680px] lg:h-[950px] rounded-full bg-[#b85438]/12 blur-[120px] lg:blur-[160px] will-change-transform"
+        />
+
+        {/* Soft Ambient Reach */}
+        <div
+          className="absolute top-[8vw] sm:top-[12vw] left-1/2 -translate-x-1/2 lg:translate-x-0 lg:left-auto lg:right-[28vw] w-[350px] sm:w-[550px] lg:w-[750px] h-[350px] sm:h-[550px] lg:h-[750px] rounded-full bg-[#b85438]/05 blur-[120px] lg:blur-[150px] will-change-transform pointer-events-none"
         />
 
         {/* Subtle Architectural Stipple Grain Texture */}
@@ -291,176 +305,332 @@ export default function PageShell({
 
       {/* ------------------------------------------------------------- */}
       {/* TOP FLOATING GLASS NAVBAR */}
-      {/* Detached, rounded-full, balanced spacing without button overflow */}
+      {/* Detached, rounded-full, balanced spacing with responsive mobile menu */}
       {/* ------------------------------------------------------------- */}
-      <header
-        id="atrium-nav"
-        className={`fixed top-3 sm:top-4 left-3 sm:left-6 right-3 sm:right-6 max-w-6xl mx-auto z-50 transition-all duration-300 ease-out flex items-center justify-between rounded-full border ${
-          isScrolled
-            ? 'py-2 px-3.5 sm:px-5 bg-black/90 backdrop-blur-2xl backdrop-saturate-150 border-white/[0.12] shadow-[0_12px_40px_rgba(0,0,0,0.7),inset_0_1px_0_rgba(255,255,255,0.12)]'
-            : 'py-2.5 px-4 sm:px-6 bg-black/80 backdrop-blur-xl backdrop-saturate-125 border-white/[0.08] shadow-[0_8px_32px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.06)]'
-        }`}
-      >
-        <div
-          onClick={() => scrollTo('section-hero')}
-          className="flex items-center cursor-pointer group shrink-0"
-          aria-label="Atrium Home"
+      <div className="fixed top-3 sm:top-4 left-3 sm:left-6 right-3 sm:right-6 max-w-6xl mx-auto z-50">
+        <header
+          id="atrium-nav"
+          className={`w-full transition-all duration-300 ease-out flex items-center justify-between rounded-full border ${
+            isScrolled
+              ? 'py-2 px-3.5 sm:px-5 bg-black/90 backdrop-blur-2xl backdrop-saturate-150 border-white/[0.12] shadow-[0_12px_40px_rgba(0,0,0,0.7),inset_0_1px_0_rgba(255,255,255,0.12)]'
+              : 'py-2.5 px-4 sm:px-6 bg-black/80 backdrop-blur-xl backdrop-saturate-125 border-white/[0.08] shadow-[0_8px_32px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.06)]'
+          }`}
         >
-          {/* Official Atrium Logo with transparent background and BY STOA STUDIO */}
-          <AtriumBrandLogo size={28} showText={true} />
-        </div>
+          <div
+            onClick={() => {
+              scrollTo('section-hero');
+              setIsMobileMenuOpen(false);
+            }}
+            className="flex items-center cursor-pointer group shrink-0"
+            aria-label="Atrium Home"
+          >
+            {/* Official Atrium Logo with transparent background and BY STOA STUDIO */}
+            <AtriumBrandLogo size={28} showText={true} />
+          </div>
 
-        {/* Desktop Anchor Navigation */}
-        <nav
-          aria-label="Main navigation"
-          className="hidden md:flex items-center gap-3 lg:gap-4 xl:gap-5 text-xs font-medium"
-        >
-          <button
-            type="button"
-            onClick={() => scrollTo('section-proof-strip')}
-            className={`transition cursor-pointer whitespace-nowrap ${
-              activeSectionId === 'section-proof-strip'
-                ? 'text-[#e06b48] font-semibold'
-                : 'text-stone-300 hover:text-white'
-            }`}
+          {/* Desktop Anchor Navigation */}
+          <nav
+            aria-label="Main navigation"
+            className="hidden md:flex items-center gap-3 lg:gap-4 xl:gap-5 text-xs font-medium"
           >
-            {content.nav.proof}
-          </button>
-          <button
-            type="button"
-            onClick={() => scrollTo('section-problem')}
-            className={`transition cursor-pointer whitespace-nowrap ${
-              activeSectionId === 'section-problem'
-                ? 'text-[#e06b48] font-semibold'
-                : 'text-stone-300 hover:text-white'
-            }`}
-          >
-            {content.nav.problem}
-          </button>
-          <button
-            type="button"
-            onClick={() => scrollTo('section-shift')}
-            className={`transition cursor-pointer whitespace-nowrap ${
-              activeSectionId === 'section-shift'
-                ? 'text-[#e06b48] font-semibold'
-                : 'text-stone-300 hover:text-white'
-            }`}
-          >
-            {content.nav.shift}
-          </button>
-          <button
-            type="button"
-            onClick={() => scrollTo('section-how-it-works')}
-            className={`transition cursor-pointer whitespace-nowrap hidden lg:block ${
-              activeSectionId === 'section-how-it-works'
-                ? 'text-[#e06b48] font-semibold'
-                : 'text-stone-300 hover:text-white'
-            }`}
-          >
-            {content.nav.howItWorks}
-          </button>
-          <button
-            type="button"
-            onClick={() => scrollTo('section-verticals')}
-            className={`transition cursor-pointer whitespace-nowrap ${
-              activeSectionId === 'section-verticals'
-                ? 'text-[#e06b48] font-semibold'
-                : 'text-stone-300 hover:text-white'
-            }`}
-          >
-            {content.nav.verticals}
-          </button>
-          <button
-            type="button"
-            onClick={() => scrollTo('section-differentiation')}
-            className={`transition cursor-pointer whitespace-nowrap hidden lg:block ${
-              activeSectionId === 'section-differentiation'
-                ? 'text-[#e06b48] font-semibold'
-                : 'text-stone-300 hover:text-white'
-            }`}
-          >
-            {content.nav.whyAtrium}
-          </button>
-          <button
-            type="button"
-            onClick={() => scrollTo('section-pricing')}
-            className={`transition cursor-pointer whitespace-nowrap ${
-              activeSectionId === 'section-pricing'
-                ? 'text-[#e06b48] font-semibold'
-                : 'text-stone-300 hover:text-white'
-            }`}
-          >
-            {content.nav.pricing}
-          </button>
-        </nav>
+            <button
+              type="button"
+              onClick={() => scrollTo('section-proof-strip')}
+              className={`transition cursor-pointer whitespace-nowrap ${
+                activeSectionId === 'section-proof-strip'
+                  ? 'text-[#e06b48] font-semibold'
+                  : 'text-stone-300 hover:text-white'
+              }`}
+            >
+              {content.nav.proof}
+            </button>
+            <button
+              type="button"
+              onClick={() => scrollTo('section-problem')}
+              className={`transition cursor-pointer whitespace-nowrap ${
+                activeSectionId === 'section-problem'
+                  ? 'text-[#e06b48] font-semibold'
+                  : 'text-stone-300 hover:text-white'
+              }`}
+            >
+              {content.nav.problem}
+            </button>
+            <button
+              type="button"
+              onClick={() => scrollTo('section-shift')}
+              className={`transition cursor-pointer whitespace-nowrap ${
+                activeSectionId === 'section-shift'
+                  ? 'text-[#e06b48] font-semibold'
+                  : 'text-stone-300 hover:text-white'
+              }`}
+            >
+              {content.nav.shift}
+            </button>
+            <button
+              type="button"
+              onClick={() => scrollTo('section-how-it-works')}
+              className={`transition cursor-pointer whitespace-nowrap hidden lg:block ${
+                activeSectionId === 'section-how-it-works'
+                  ? 'text-[#e06b48] font-semibold'
+                  : 'text-stone-300 hover:text-white'
+              }`}
+            >
+              {content.nav.howItWorks}
+            </button>
+            <button
+              type="button"
+              onClick={() => scrollTo('section-verticals')}
+              className={`transition cursor-pointer whitespace-nowrap ${
+                activeSectionId === 'section-verticals'
+                  ? 'text-[#e06b48] font-semibold'
+                  : 'text-stone-300 hover:text-white'
+              }`}
+            >
+              {content.nav.verticals}
+            </button>
+            <button
+              type="button"
+              onClick={() => scrollTo('section-differentiation')}
+              className={`transition cursor-pointer whitespace-nowrap hidden lg:block ${
+                activeSectionId === 'section-differentiation'
+                  ? 'text-[#e06b48] font-semibold'
+                  : 'text-stone-300 hover:text-white'
+              }`}
+            >
+              {content.nav.whyAtrium}
+            </button>
+            <button
+              type="button"
+              onClick={() => scrollTo('section-pricing')}
+              className={`transition cursor-pointer whitespace-nowrap ${
+                activeSectionId === 'section-pricing'
+                  ? 'text-[#e06b48] font-semibold'
+                  : 'text-stone-300 hover:text-white'
+              }`}
+            >
+              {content.nav.pricing}
+            </button>
+          </nav>
 
-        {/* Action Controls - Compact Walkthrough button without overflow */}
-        <div className="flex items-center gap-2 shrink-0">
-          <button
-            type="button"
-            onClick={onOpenDemo}
-            className="px-3 sm:px-3.5 py-1 sm:py-1.5 rounded-full bg-[#b85438] hover:bg-[#a04830] text-white font-medium text-[11px] sm:text-xs tracking-wide transition shadow-md shadow-[#b85438]/20 cursor-pointer whitespace-nowrap"
-          >
-            {content.nav.bookDemo}
-          </button>
-        </div>
-      </header>
+          {/* Action Controls: Compact Walkthrough button & Mobile Menu Toggle */}
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={onOpenDemo}
+              className="px-3.5 sm:px-4 py-1.5 rounded-full bg-[#b85438] hover:bg-[#a04830] text-white font-medium text-[11px] sm:text-xs tracking-wide transition shadow-md shadow-[#b85438]/20 cursor-pointer whitespace-nowrap shrink-0"
+            >
+              {content.nav.bookDemo}
+            </button>
+
+            {/* Mobile Hamburger Menu Toggle Button */}
+            <button
+              type="button"
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              aria-label="Toggle navigation menu"
+              aria-expanded={isMobileMenuOpen}
+              className="md:hidden w-8 h-8 rounded-full flex items-center justify-center text-stone-300 hover:text-white bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.1] transition cursor-pointer shrink-0"
+            >
+              {isMobileMenuOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
+            </button>
+          </div>
+        </header>
+
+        {/* Mobile Navigation Dropdown Drawer */}
+        {isMobileMenuOpen && (
+          <div className="md:hidden mt-2 p-4 rounded-2xl bg-stone-950/95 backdrop-blur-2xl border border-white/[0.14] shadow-[0_16px_48px_rgba(0,0,0,0.9)] flex flex-col gap-1 text-sm font-medium">
+            <button
+              type="button"
+              onClick={() => {
+                scrollTo('section-proof-strip');
+                setIsMobileMenuOpen(false);
+              }}
+              className="text-left px-3 py-2.5 rounded-lg text-stone-300 hover:text-white hover:bg-white/[0.06] transition flex items-center justify-between"
+            >
+              <span>{content.nav.proof}</span>
+              <ChevronRight className="w-3.5 h-3.5 text-stone-500" />
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                scrollTo('section-problem');
+                setIsMobileMenuOpen(false);
+              }}
+              className="text-left px-3 py-2.5 rounded-lg text-stone-300 hover:text-white hover:bg-white/[0.06] transition flex items-center justify-between"
+            >
+              <span>{content.nav.problem}</span>
+              <ChevronRight className="w-3.5 h-3.5 text-stone-500" />
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                scrollTo('section-shift');
+                setIsMobileMenuOpen(false);
+              }}
+              className="text-left px-3 py-2.5 rounded-lg text-stone-300 hover:text-white hover:bg-white/[0.06] transition flex items-center justify-between"
+            >
+              <span>{content.nav.shift}</span>
+              <ChevronRight className="w-3.5 h-3.5 text-stone-500" />
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                scrollTo('section-how-it-works');
+                setIsMobileMenuOpen(false);
+              }}
+              className="text-left px-3 py-2.5 rounded-lg text-stone-300 hover:text-white hover:bg-white/[0.06] transition flex items-center justify-between"
+            >
+              <span>{content.nav.howItWorks}</span>
+              <ChevronRight className="w-3.5 h-3.5 text-stone-500" />
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                scrollTo('section-verticals');
+                setIsMobileMenuOpen(false);
+              }}
+              className="text-left px-3 py-2.5 rounded-lg text-stone-300 hover:text-white hover:bg-white/[0.06] transition flex items-center justify-between"
+            >
+              <span>{content.nav.verticals}</span>
+              <ChevronRight className="w-3.5 h-3.5 text-stone-500" />
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                scrollTo('section-differentiation');
+                setIsMobileMenuOpen(false);
+              }}
+              className="text-left px-3 py-2.5 rounded-lg text-stone-300 hover:text-white hover:bg-white/[0.06] transition flex items-center justify-between"
+            >
+              <span>{content.nav.whyAtrium}</span>
+              <ChevronRight className="w-3.5 h-3.5 text-stone-500" />
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                scrollTo('section-pricing');
+                setIsMobileMenuOpen(false);
+              }}
+              className="text-left px-3 py-2.5 rounded-lg text-stone-300 hover:text-white hover:bg-white/[0.06] transition flex items-center justify-between"
+            >
+              <span>{content.nav.pricing}</span>
+              <ChevronRight className="w-3.5 h-3.5 text-stone-500" />
+            </button>
+
+            {/* Bottom controls: Language selector and Walkthrough trigger */}
+            <div className="mt-2 pt-3 border-t border-white/[0.08] flex items-center justify-between gap-3">
+              <div className="flex items-center gap-1 bg-white/[0.05] p-1 rounded-lg border border-white/[0.08]">
+                <button
+                  type="button"
+                  onClick={() => onLanguageChange('en')}
+                  className={`px-2 py-1 rounded text-[11px] font-semibold transition ${
+                    lang === 'en' ? 'bg-[#b85438] text-white' : 'text-stone-400 hover:text-white'
+                  }`}
+                >
+                  EN
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onLanguageChange('fr')}
+                  className={`px-2 py-1 rounded text-[11px] font-semibold transition ${
+                    lang === 'fr' ? 'bg-[#b85438] text-white' : 'text-stone-400 hover:text-white'
+                  }`}
+                >
+                  FR
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onLanguageChange('ar')}
+                  className={`px-2 py-1 rounded text-[11px] font-semibold transition ${
+                    lang === 'ar' ? 'bg-[#b85438] text-white' : 'text-stone-400 hover:text-white'
+                  }`}
+                >
+                  AR
+                </button>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setIsMobileMenuOpen(false);
+                  onOpenDemo();
+                }}
+                className="flex-1 py-2 rounded-lg bg-[#b85438] hover:bg-[#a04830] text-white font-semibold text-xs tracking-wider uppercase transition shadow-md shadow-[#b85438]/20 flex items-center justify-center gap-1.5"
+              >
+                <Calendar className="w-3.5 h-3.5" />
+                <span>{content.nav.bookDemo}</span>
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* ------------------------------------------------------------- */}
       {/* SECTION 1 — HERO */}
-      {/* 3D Robots and floor stay strictly inside Hero section */}
+      {/* Responsive layout: clean, fast typography on mobile, interactive 3D hero on desktop (lg+) */}
       {/* ------------------------------------------------------------- */}
       <section
         id="section-hero"
-        className="relative w-full min-h-screen bg-transparent overflow-hidden flex flex-col justify-between"
+        className="relative w-full min-h-screen bg-transparent overflow-hidden flex flex-col justify-start lg:justify-center pt-20 sm:pt-24 lg:pt-0"
       >
-        {/* 3D Scene Layer (strictly contained within Hero) */}
-        <div className="absolute inset-0 z-0 pointer-events-none">
-          {hero3DNode}
-        </div>
+        {/* Full-bleed 3D Scene Layer: Desktop-only (lg+), completely excluded on mobile */}
+        {hero3DNode && (
+          <div className="hidden lg:block absolute inset-0 z-0 pointer-events-none">
+            {hero3DNode}
+          </div>
+        )}
 
         {/* Hero Content Overlay Layer */}
-        <div className="relative z-10 p-6 sm:p-12 pt-32 sm:pt-36 max-w-7xl mx-auto w-full flex-1 flex flex-col justify-between pointer-events-auto">
-          <div className="max-w-md lg:max-w-lg">
+        <div className="relative z-10 px-5 sm:px-8 lg:px-12 max-w-7xl mx-auto w-full flex-1 flex flex-col justify-between lg:justify-center pointer-events-auto pb-6 sm:pb-8 lg:pb-0">
+          <div className="max-w-xl lg:max-w-lg pt-1 sm:pt-4 lg:pt-0 relative z-10 pointer-events-auto">
+            {/* Category eyebrow */}
+            <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-white/[0.05] border border-white/[0.08] text-[10px] sm:text-xs font-mono text-stone-300 mb-3 sm:mb-4">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#b85438] animate-pulse" />
+              <span>{lang === 'ar' ? 'نظام تشغيل للمؤسسات' : lang === 'fr' ? 'OS Opérationnel Autonome' : 'Autonomous Operations Platform'}</span>
+            </div>
+
             {/* Headline: Atrium alone in terracotta, as a service beneath it */}
-            <h1 className="font-editorial text-5xl sm:text-7xl lg:text-8xl font-extrabold tracking-tight leading-[0.98] mb-5">
+            <h1 className="font-editorial text-4xl sm:text-6xl lg:text-7xl xl:text-8xl font-extrabold tracking-tight leading-[1.0] mb-3 sm:mb-4">
               <span className="block text-[#b85438]">{content.hero.brandName}</span>
-              <span className="block text-stone-100 text-3xl sm:text-5xl lg:text-6xl font-light tracking-normal">
+              <span className="block text-stone-100 text-2xl sm:text-4xl lg:text-5xl font-light tracking-normal mt-0.5">
                 {content.hero.serviceLine}
               </span>
             </h1>
 
-            {/* Subheadline: Detailed operational narrative */}
-            <p className="text-xs sm:text-sm text-stone-300 font-normal leading-relaxed font-sans max-w-md mb-8">
+            {/* Subheadline: Tightened spacing, clean contrast */}
+            <p className="text-xs sm:text-sm text-stone-300 font-normal leading-relaxed font-sans max-w-md mb-4 sm:mb-6">
               {content.hero.subheadline}
             </p>
 
-            {/* ONE Primary CTA Button — Compact & Crisp */}
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+            {/* ONE Primary CTA Button — Touch-friendly thumb target on mobile */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 sm:gap-3.5 mb-3 sm:mb-6">
               <button
                 type="button"
                 onClick={onOpenDemo}
-                className="w-full sm:w-auto px-5 py-3 rounded-md bg-[#b85438] hover:bg-[#a24830] text-white font-semibold text-xs tracking-wider uppercase transition shadow-xl shadow-[#b85438]/25 cursor-pointer flex items-center justify-center gap-2.5"
+                className="w-full sm:w-auto min-h-[48px] px-6 py-3.5 sm:py-3 rounded-lg bg-[#b85438] hover:bg-[#a24830] active:scale-[0.98] text-white font-semibold text-xs tracking-wider uppercase transition shadow-xl shadow-[#b85438]/25 cursor-pointer flex items-center justify-center gap-2.5 whitespace-nowrap shrink-0 touch-manipulation"
               >
-                <Calendar className="w-4 h-4" />
-                <span>{content.hero.ctaButton}</span>
+                <Calendar className="w-4 h-4 shrink-0" />
+                <span className="whitespace-nowrap">{content.hero.ctaButton}</span>
               </button>
 
-              <span className="text-[10px] sm:text-[11px] font-mono text-stone-500">
-                15 min • No hardware required • WhatsApp follow-up
+              <span className="text-[10px] sm:text-[11px] font-mono text-stone-400 text-center sm:text-left whitespace-nowrap">
+                {lang === 'ar'
+                  ? 'تجربة مجانية 14 يوماً • بدون بطاقة بنكية • إعداد فوري'
+                  : lang === 'fr'
+                  ? 'Essai gratuit 14 jours • Sans carte • Configuration rapide'
+                  : '14-day free trial • No card required • Instant setup'}
               </span>
             </div>
           </div>
 
-          {/* Scroll Indicator Prompt without DESKTOP & CLOUD tag */}
-          <div className="pt-12 pb-4 flex items-center justify-between">
+          {/* Scroll Indicator Prompt with clear, unobstructed background */}
+          <div className="pt-2 sm:pt-3 lg:pt-4 flex items-center relative z-10 pointer-events-auto">
             <button
               type="button"
               onClick={() => scrollTo('section-proof-strip')}
-              className="flex items-center gap-2 text-[11px] font-mono text-stone-400 hover:text-stone-200 transition cursor-pointer group"
+              className="flex items-center gap-2 text-[11px] font-mono text-stone-400 hover:text-stone-200 transition cursor-pointer group py-1"
             >
-              <ArrowDownRight className="w-3.5 h-3.5 text-[#b85438] group-hover:translate-y-0.5 group-hover:translate-x-0.5 transition-transform" />
-              <span>{content.hero.scrollHint}</span>
+              <ArrowDownRight className="w-3.5 h-3.5 text-[#b85438] group-hover:translate-y-0.5 group-hover:translate-x-0.5 transition-transform shrink-0" />
+              <span className="whitespace-nowrap">{content.hero.scrollHint}</span>
             </button>
           </div>
         </div>
@@ -477,15 +647,16 @@ export default function PageShell({
         <div className="max-w-6xl mx-auto">
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10 pb-6">
             <div className="max-w-2xl">
-              <span className="text-[10px] sm:text-[11px] font-mono text-[#e06b48] tracking-widest uppercase block mb-2 font-semibold">
-                {content.proofStrip.tag}
-              </span>
-              <h2 className="font-editorial text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-tight text-stone-100">
-                {content.proofStrip.headline}
-              </h2>
-              <p className="text-stone-400 text-xs sm:text-sm mt-2 font-sans leading-relaxed">
-                {content.proofStrip.subline}
-              </p>
+              <SectionHeader
+                icon={Layers}
+                tag={content.proofStrip.tag}
+                primary={content.proofStrip.headlinePrimary}
+                accent={content.proofStrip.headlineAccent}
+                subline={content.proofStrip.subline}
+                align="left"
+                className="mb-0"
+                ctaButton={{ text: content.tryStartButton, onClick: onOpenDemo }}
+              />
             </div>
             <button
               type="button"
@@ -543,17 +714,15 @@ export default function PageShell({
         className="relative z-10 min-h-screen py-24 sm:py-32 px-6 sm:px-12 border-t border-stone-800/60 bg-transparent flex items-center justify-center"
       >
         <div className="max-w-5xl mx-auto w-full">
-          <div className="problem-header mb-14 text-center sm:text-left">
-            <span className="text-xs font-mono text-[#c85a3a] tracking-widest uppercase block mb-2">
-              {content.problem.tag}
-            </span>
-            <h2 className="font-editorial text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-stone-100 leading-tight max-w-3xl">
-              {content.problem.headline}
-            </h2>
-            <p className="text-stone-400 font-normal text-sm sm:text-base mt-3 max-w-xl leading-relaxed font-sans">
-              {content.problem.subline}
-            </p>
-          </div>
+          <SectionHeader
+            icon={AlertCircle}
+            tag={content.problem.tag}
+            primary={content.problem.headlinePrimary}
+            accent={content.problem.headlineAccent}
+            subline={content.problem.subline}
+            className="problem-header"
+            ctaButton={{ text: content.tryStartButton, onClick: onOpenDemo }}
+          />
 
           {/* 4 Pain Statements Specific to SMB Reality */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8">
@@ -591,17 +760,15 @@ export default function PageShell({
         className="relative z-10 min-h-screen py-24 sm:py-32 px-6 sm:px-12 border-t border-stone-800/60 bg-transparent flex items-center justify-center"
       >
         <div className="max-w-5xl mx-auto w-full">
-          <div className="shift-header mb-14 text-center sm:text-left">
-            <span className="text-xs font-mono text-[#e06b48] tracking-widest uppercase block mb-2">
-              {content.shift.tag}
-            </span>
-            <h2 className="font-editorial text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-white leading-tight max-w-3xl">
-              {content.shift.headline}
-            </h2>
-            <p className="text-stone-300 font-normal text-sm sm:text-base mt-3 max-w-xl leading-relaxed font-sans">
-              {content.shift.subline}
-            </p>
-          </div>
+          <SectionHeader
+            icon={Sparkles}
+            tag={content.shift.tag}
+            primary={content.shift.headlinePrimary}
+            accent={content.shift.headlineAccent}
+            subline={content.shift.subline}
+            className="shift-header"
+            ctaButton={{ text: content.tryStartButton, onClick: onOpenDemo }}
+          />
 
           {/* 4 Shift Resolutions (1-to-1 mirror) */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8">
@@ -632,21 +799,24 @@ export default function PageShell({
           <BeforeAfterSlider lang={lang} />
 
           {/* Unification Visual Metaphor Callout */}
-          <div className="shift-callout mt-8 p-6 rounded-xl bg-stone-950/85 backdrop-blur-md border border-stone-800 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs font-mono text-stone-300 shadow-xl">
-            <div className="flex items-center gap-3">
-              <div className="w-3 h-3 rotate-45 bg-[#e06b48] shadow-[0_0_12px_rgba(224,107,72,0.7)]" />
-              <span>THE UNIFIED ATRIUM CORE: 4 scattered vectors resolve into 1 central truth.</span>
-            </div>
-            <button
-              type="button"
-              onClick={onOpenDemo}
-              className="text-[#c85a3a] hover:text-stone-200 transition underline underline-offset-4 cursor-pointer"
-            >
-              See the unified system live →
-            </button>
+          <div className="shift-callout mt-8 p-6 rounded-xl bg-stone-950/85 backdrop-blur-md border border-stone-800 flex items-center gap-3 text-xs font-mono text-stone-300 shadow-xl">
+            <div className="w-3 h-3 rotate-45 bg-[#e06b48] shadow-[0_0_12px_rgba(224,107,72,0.7)] shrink-0" />
+            <span>THE UNIFIED ATRIUM CORE: 4 scattered vectors resolve into 1 central truth.</span>
           </div>
         </div>
       </section>
+
+      {/* ------------------------------------------------------------- */}
+      {/* FEELING LINE (OPTION A) — Resting breath between Section 3 & 4 */}
+      {/* Center-aligned, generous vertical padding, large editorial type */}
+      {/* ------------------------------------------------------------- */}
+      <div className="relative z-10 py-24 sm:py-32 px-6 sm:px-12 text-center bg-transparent border-t border-stone-800/40">
+        <div className="max-w-3xl mx-auto">
+          <p className="font-editorial text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-stone-300 leading-tight">
+            {content.feelingLine}
+          </p>
+        </div>
+      </div>
 
       {/* ------------------------------------------------------------- */}
       {/* SECTION 4 — HOW IT WORKS (3-4 Steps) */}
@@ -671,17 +841,15 @@ export default function PageShell({
         className="relative z-20 py-24 sm:py-32 px-6 sm:px-12 border-t border-stone-800/60 bg-transparent"
       >
         <div className="max-w-6xl mx-auto">
-          <div className="mb-12">
-            <span className="text-xs font-mono text-[#e06b48] tracking-widest uppercase block mb-2 font-semibold">
-              {content.verticals.tag}
-            </span>
-            <h2 className="font-editorial text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-stone-100 leading-tight max-w-3xl">
-              {content.verticals.headline}
-            </h2>
-            <p className="text-stone-400 font-normal text-sm sm:text-base mt-3 max-w-xl leading-relaxed font-sans">
-              {content.verticals.subline}
-            </p>
-          </div>
+          <SectionHeader
+            icon={Compass}
+            tag={content.verticals.tag}
+            primary={content.verticals.headlinePrimary}
+            accent={content.verticals.headlineAccent}
+            subline={content.verticals.subline}
+            align="left"
+            ctaButton={{ text: content.tryStartButton, onClick: onOpenDemo }}
+          />
 
           {/* Vertical Selector Tabs */}
           <div className="flex flex-wrap gap-2 border-b border-stone-800/80 pb-4 mb-8">
@@ -742,9 +910,10 @@ export default function PageShell({
                 <button
                   type="button"
                   onClick={onOpenDemo}
-                  className="px-5 py-2.5 rounded-md bg-stone-800 hover:bg-stone-700 text-stone-200 text-xs font-mono transition border border-stone-700 cursor-pointer"
+                  className="px-5 py-2.5 rounded-md bg-[#b85438] hover:bg-[#a24830] text-white text-xs font-mono font-semibold transition shadow-lg shadow-[#b85438]/20 flex items-center gap-2 cursor-pointer"
                 >
-                  Schedule {currentVertical.name} Walkthrough →
+                  <Calendar className="w-3.5 h-3.5" />
+                  <span>{content.tryStartButton}</span>
                 </button>
               </div>
             </div>
@@ -808,17 +977,15 @@ export default function PageShell({
         className="relative z-20 py-24 sm:py-32 px-6 sm:px-12 border-t border-stone-800/60 bg-transparent"
       >
         <div className="max-w-6xl mx-auto">
-          <div className="mb-14">
-            <span className="text-xs font-mono text-emerald-400 tracking-widest uppercase block mb-2">
-              {content.differentiation.tag}
-            </span>
-            <h2 className="font-editorial text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-stone-100 leading-tight max-w-3xl">
-              {content.differentiation.headline}
-            </h2>
-            <p className="text-stone-400 font-normal text-sm sm:text-base mt-3 max-w-xl leading-relaxed font-sans">
-              {content.differentiation.subline}
-            </p>
-          </div>
+          <SectionHeader
+            icon={ShieldCheck}
+            tag={content.differentiation.tag}
+            primary={content.differentiation.headlinePrimary}
+            accent={content.differentiation.headlineAccent}
+            subline={content.differentiation.subline}
+            align="left"
+            ctaButton={{ text: content.tryStartButton, onClick: onOpenDemo }}
+          />
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {content.differentiation.pillars.map((pillar) => (
@@ -857,24 +1024,25 @@ export default function PageShell({
         className="relative z-20 py-24 sm:py-32 px-6 sm:px-12 border-t border-stone-800/60 bg-transparent"
       >
         <div className="max-w-6xl mx-auto">
-          <div className="mb-12">
-            <span className="text-xs font-mono text-[#e06b48] tracking-widest uppercase block mb-2">
-              {content.dashboard.tag}
-            </span>
-            <h2 className="font-editorial text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-white leading-tight max-w-3xl">
-              {content.dashboard.headline}
-            </h2>
-            <p className="text-stone-300 font-normal text-sm sm:text-base mt-3 max-w-xl leading-relaxed font-sans">
-              {content.dashboard.subline}
-            </p>
-          </div>
+          <SectionHeader
+            icon={Activity}
+            tag={content.dashboard.tag}
+            primary={content.dashboard.headlinePrimary}
+            accent={content.dashboard.headlineAccent}
+            subline={content.dashboard.subline}
+            align="left"
+            ctaButton={{ text: content.tryStartButton, onClick: onOpenDemo }}
+          />
 
           {/* Large Interactive KPI Executive Dashboard Mockup */}
           <div className="rounded-2xl bg-black/90 backdrop-blur-md border border-stone-800 p-6 sm:p-8 shadow-2xl overflow-hidden">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-6 mb-6 border-b border-stone-800/80 gap-4">
               <div>
-                <div className="text-base font-semibold text-stone-100 font-mono">
-                  EXECUTIVE SUMMARY // CONSOLIDATED NETWORK
+                <div className="text-base font-semibold text-stone-100 font-mono flex items-center gap-2">
+                  <span>EXECUTIVE SUMMARY // CONSOLIDATED NETWORK</span>
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-stone-900 text-[#f28e72] font-semibold border border-stone-800">
+                    SAMPLE DATA
+                  </span>
                 </div>
                 <div className="text-xs text-stone-400 font-sans">
                   {content.dashboard.caption}
@@ -915,7 +1083,7 @@ export default function PageShell({
             {/* KPI Cards Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
               <SpotlightCard className="p-5">
-                <div className="text-xs font-mono text-stone-500 mb-1">TODAY&apos;S NET REVENUE</div>
+                <div className="text-xs font-mono text-stone-500 mb-1">TODAY&apos;S NET REVENUE (SAMPLE)</div>
                 <div className="text-2xl font-bold font-mono text-stone-100">
                   <AnimatedCounter end={240700} duration={1600} /> <span className="text-xs font-normal text-stone-400">DZD</span>
                 </div>
@@ -925,7 +1093,7 @@ export default function PageShell({
               </SpotlightCard>
 
               <SpotlightCard className="p-5">
-                <div className="text-xs font-mono text-stone-500 mb-1">CASH IN TILL (CURRENT)</div>
+                <div className="text-xs font-mono text-stone-500 mb-1">CASH IN TILL (SAMPLE)</div>
                 <div className="text-2xl font-bold font-mono text-stone-100">
                   <AnimatedCounter end={86400} duration={1400} /> <span className="text-xs font-normal text-stone-400">DZD</span>
                 </div>
@@ -935,7 +1103,7 @@ export default function PageShell({
               </SpotlightCard>
 
               <SpotlightCard className="p-5">
-                <div className="text-xs font-mono text-stone-500 mb-1">ACTIVE CUSTOMERS ON FLOOR</div>
+                <div className="text-xs font-mono text-stone-500 mb-1">ACTIVE CUSTOMERS ON FLOOR (SAMPLE)</div>
                 <div className="text-2xl font-bold font-mono text-[#f28e72]">
                   <AnimatedCounter end={54} duration={1200} /> <span className="text-xs font-normal text-stone-400">people</span>
                 </div>
@@ -945,7 +1113,7 @@ export default function PageShell({
               </SpotlightCard>
 
               <SpotlightCard className="p-5">
-                <div className="text-xs font-mono text-stone-500 mb-1">AUTOMATED PAYROLL OWED</div>
+                <div className="text-xs font-mono text-stone-500 mb-1">AUTOMATED PAYROLL OWED (SAMPLE)</div>
                 <div className="text-2xl font-bold font-mono text-stone-100">
                   <AnimatedCounter end={34200} duration={1500} /> <span className="text-xs font-normal text-stone-400">DZD</span>
                 </div>
@@ -958,7 +1126,7 @@ export default function PageShell({
             {/* Consolidated Location Breakdown Table */}
             <div className="rounded-lg bg-stone-950/60 border border-stone-800/80 p-4 font-mono text-xs overflow-x-auto">
               <div className="text-[11px] text-stone-500 uppercase tracking-wider mb-3">
-                Live Branch Telemetry
+                Live Branch Telemetry (Sample Data)
               </div>
               <table className="w-full text-left min-w-[500px]">
                 <thead>
@@ -1004,17 +1172,15 @@ export default function PageShell({
         className="relative z-20 py-24 sm:py-32 px-6 sm:px-12 border-t border-stone-800/60 bg-transparent"
       >
         <div className="max-w-6xl mx-auto">
-          <div className="mb-14 text-center">
-            <span className="text-xs font-mono text-[#c85a3a] tracking-widest uppercase block mb-2">
-              {content.pricing.tag}
-            </span>
-            <h2 className="font-editorial text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-stone-100 leading-tight max-w-2xl mx-auto">
-              {content.pricing.headline}
-            </h2>
-            <p className="text-stone-400 font-normal text-sm sm:text-base mt-3 max-w-xl mx-auto leading-relaxed font-sans">
-              {content.pricing.subline}
-            </p>
-          </div>
+          <SectionHeader
+            icon={CreditCard}
+            tag={content.pricing.tag}
+            primary={content.pricing.headlinePrimary}
+            accent={content.pricing.headlineAccent}
+            subline={content.pricing.subline}
+            align="center"
+            ctaButton={{ text: content.tryStartButton, onClick: onOpenDemo }}
+          />
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
             {content.pricing.tiers.map((tier, idx) => (
@@ -1096,12 +1262,15 @@ export default function PageShell({
         className="relative z-20 py-24 sm:py-28 px-6 sm:px-12 border-t border-stone-800/60 bg-transparent"
       >
         <div className="max-w-4xl mx-auto text-center">
-          <span className="text-xs font-mono text-[#c85a3a] tracking-widest uppercase block mb-3 font-semibold">
-            {content.credibility.tag}
-          </span>
-          <h2 className="font-editorial text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-stone-100 leading-snug mb-10">
-            {content.credibility.headline}
-          </h2>
+          <SectionHeader
+            icon={Building}
+            tag={content.credibility.tag}
+            primary={content.credibility.headlinePrimary}
+            accent={content.credibility.headlineAccent}
+            align="center"
+            className="mb-8"
+            ctaButton={{ text: content.tryStartButton, onClick: onOpenDemo }}
+          />
 
           <div className="p-8 sm:p-12 rounded-2xl bg-stone-950/90 backdrop-blur-md border border-stone-800 text-stone-200 text-left font-sans text-sm sm:text-base leading-relaxed shadow-2xl max-w-3xl mx-auto mb-8 space-y-4">
             <p className="text-stone-200 font-normal">
@@ -1131,31 +1300,23 @@ export default function PageShell({
         className="relative z-20 py-28 sm:py-36 px-6 sm:px-12 border-t border-stone-800/60 bg-transparent text-center"
       >
         <div className="max-w-2xl mx-auto space-y-6">
-          <h2 className="font-editorial text-3xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-stone-100 leading-tight">
-            {content.finalCta.headline}
-          </h2>
-          <p className="text-sm sm:text-base text-stone-400 font-normal font-sans leading-relaxed">
-            {content.finalCta.subline}
-          </p>
+          <SectionHeader
+            icon={Calendar}
+            tag={content.finalCta.tag}
+            primary={content.finalCta.headlinePrimary}
+            accent={content.finalCta.headlineAccent}
+            subline={content.finalCta.subline}
+            align="center"
+            className="mb-4"
+            ctaButton={{ text: content.finalCta.ctaButton, onClick: onOpenDemo }}
+          />
 
-          <div className="pt-4">
-            <button
-              type="button"
-              onClick={onOpenDemo}
-              className="w-full sm:w-auto px-8 py-4 rounded-md bg-[#b85438] hover:bg-[#a24830] text-white font-semibold text-xs tracking-wider uppercase transition shadow-2xl shadow-[#b85438]/30 cursor-pointer inline-flex items-center justify-center gap-2.5"
-            >
-              <Calendar className="w-4 h-4" />
-              <span>{content.finalCta.ctaButton}</span>
-            </button>
-          </div>
-
-          <div className="text-[11px] font-mono text-stone-500 pt-2">
+          <div className="text-[11px] font-mono text-stone-500 pt-1">
             Instant scheduling • Response within 2 business hours • WhatsApp direct
           </div>
         </div>
       </section>
 
-      {/* ------------------------------------------------------------- */}
       {/* SECTION 11 — FOOTER */}
       {/* Standard: contact info, social links, legal, language toggle */}
       {/* ------------------------------------------------------------- */}
@@ -1227,6 +1388,11 @@ export default function PageShell({
           </div>
         </div>
       </footer>
+
+      {/* ------------------------------------------------------------- */}
+      {/* CLOSING BRAND STATEMENT — FULL-WIDTH ARABIC WORDMARK (THE VERY END OF THE SITE) */}
+      {/* ------------------------------------------------------------- */}
+      <ClosingWordmark lang={lang} />
     </div>
   );
 }

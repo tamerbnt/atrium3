@@ -86,7 +86,10 @@ export function BeforeAfterSlider({ lang }: BeforeAfterSliderProps) {
           {/* Clean Dashboard Preview */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-xl ml-auto text-left">
             <div className="p-4 rounded-xl bg-stone-900/90 border border-stone-800/80 shadow-lg">
-              <div className="text-[10px] font-mono text-stone-500 mb-1">SINGLE SOURCE OF TRUTH</div>
+              <div className="text-[10px] font-mono text-stone-500 mb-1 flex items-center justify-between">
+                <span>SINGLE SOURCE OF TRUTH</span>
+                <span className="text-[#f28e72] font-semibold">SAMPLE</span>
+              </div>
               <div className="text-stone-200 text-xs font-semibold mb-2">Automated Register &amp; Turnstile Log</div>
               <div className="space-y-1 text-[11px] font-mono text-stone-400">
                 <div className="flex justify-between text-emerald-400">
@@ -101,7 +104,10 @@ export function BeforeAfterSlider({ lang }: BeforeAfterSliderProps) {
             </div>
 
             <div className="p-4 rounded-xl bg-stone-900/90 border border-stone-800/80 shadow-lg">
-              <div className="text-[10px] font-mono text-stone-500 mb-1">REAL-TIME COMMISSIONS</div>
+              <div className="text-[10px] font-mono text-stone-500 mb-1 flex items-center justify-between">
+                <span>REAL-TIME COMMISSIONS</span>
+                <span className="text-[#f28e72] font-semibold">SAMPLE</span>
+              </div>
               <div className="text-stone-200 text-xs font-semibold mb-2">Instant Staff Reconciliation</div>
               <div className="space-y-1 text-[11px] font-mono text-stone-400">
                 <div className="flex justify-between text-stone-200">

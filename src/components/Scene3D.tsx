@@ -29,41 +29,65 @@ interface Scene3DProps {
   onStatsUpdate?: (stats: { fps: number; drawCalls: number; triangles: number }) => void;
 }
 
-// 4 Stylized Robot Heads arrangement: restored initial intended composition
-export const ROBOT_CONFIGS = [
+// 4 Stylized Robot Heads arrangement: refined cohesive cluster composition for Desktop
+// Dynamic triangular/diamond hierarchy with Hero Front-Right as dominant anchor
+export const DESKTOP_ROBOT_CONFIGS = [
   {
     id: 1,
     name: 'Hero Central',
-    pos: [0.16, 0.22, 0.40] as [number, number, number],
+    pos: [0.18, 0.00, 0.42] as [number, number, number],
     rot: [0.08, -0.22, -0.04] as [number, number, number],
-    scale: 1.08,
+    scale: 1.15,
     phase: 0,
   },
   {
     id: 2,
     name: 'Top Left Accent',
-    pos: [-0.76, 0.82, -0.25] as [number, number, number],
-    rot: [-0.05, 0.05, 0.04] as [number, number, number],
-    scale: 0.86,
+    pos: [-0.38, 0.46, -0.16] as [number, number, number],
+    rot: [-0.04, 0.08, 0.02] as [number, number, number],
+    scale: 0.72,
     phase: 2.1,
   },
   {
     id: 3,
     name: 'Lower Left Base',
-    pos: [-0.68, -0.36, 0.10] as [number, number, number],
-    rot: [0.08, 0.08, -0.04] as [number, number, number],
-    scale: 0.90,
+    pos: [-0.56, -0.42, 0.04] as [number, number, number],
+    rot: [0.06, 0.14, -0.03] as [number, number, number],
+    scale: 0.82,
     phase: 3.8,
   },
   {
     id: 4,
     name: 'Back Right Depth',
-    pos: [0.72, 0.70, -0.38] as [number, number, number],
-    rot: [0.06, -0.35, 0.05] as [number, number, number],
-    scale: 0.80,
+    pos: [0.70, 0.64, -0.48] as [number, number, number],
+    rot: [0.05, -0.32, 0.04] as [number, number, number],
+    scale: 0.60,
     phase: 5.4,
   },
 ];
+
+// 2 Stylized Robot Heads for Mobile: perfectly centered duo with zero side clipping
+// Eliminates off-screen right cropping, cuts draw calls and vertices in half
+export const MOBILE_ROBOT_CONFIGS = [
+  {
+    id: 1,
+    name: 'Hero Central',
+    pos: [0.16, -0.04, 0.38] as [number, number, number],
+    rot: [0.06, -0.18, -0.03] as [number, number, number],
+    scale: 1.05,
+    phase: 0,
+  },
+  {
+    id: 2,
+    name: 'Left Companion',
+    pos: [-0.34, 0.22, -0.12] as [number, number, number],
+    rot: [-0.03, 0.10, 0.02] as [number, number, number],
+    scale: 0.76,
+    phase: 2.1,
+  },
+];
+
+export const ROBOT_CONFIGS = DESKTOP_ROBOT_CONFIGS;
 
 /**
  * Inner 3D scene content with Three.js objects
@@ -266,6 +290,33 @@ function SceneContent({
     });
   }, [brushedTex]);
 
+  // Distant background robot materials: higher roughness, reduced specular & emissive as atmospheric depth cue
+  const distantBodyMaterial = useMemo(() => {
+    return new THREE.MeshPhysicalMaterial({
+      color: new THREE.Color('#0d0f13'),
+      metalness: 0.88,
+      roughness: 0.40,
+      bumpMap: brushedTex,
+      bumpScale: 0.003,
+      clearcoat: 0.25,
+      clearcoatRoughness: 0.35,
+      envMapIntensity: 1.0,
+    });
+  }, [brushedTex]);
+
+  const distantJawMaterial = useMemo(() => {
+    return new THREE.MeshPhysicalMaterial({
+      color: new THREE.Color('#0b0c10'),
+      metalness: 0.86,
+      roughness: 0.42,
+      bumpMap: brushedTex,
+      bumpScale: 0.003,
+      clearcoat: 0.20,
+      clearcoatRoughness: 0.35,
+      envMapIntensity: 0.9,
+    });
+  }, [brushedTex]);
+
   // Base glowing terracotta eye material
   const eyeMaterial = useMemo(() => {
     return new THREE.MeshStandardMaterial({
@@ -273,6 +324,17 @@ function SceneContent({
       emissive: new THREE.Color('#ff5a30'),
       emissiveIntensity: 2.8,
       roughness: 0.12,
+      metalness: 0.0,
+    });
+  }, []);
+
+  // Softer eye glow for the furthest robot (atmospheric depth cue)
+  const distantEyeMaterial = useMemo(() => {
+    return new THREE.MeshStandardMaterial({
+      color: new THREE.Color('#c24a28'),
+      emissive: new THREE.Color('#d94820'),
+      emissiveIntensity: 1.6,
+      roughness: 0.25,
       metalness: 0.0,
     });
   }, []);
@@ -298,11 +360,14 @@ function SceneContent({
     });
   }, [terracottaDiscTex]);
 
-  // Compute responsive layout offsets using viewport in world units (framing on right side of hero)
-  const clusterOffsetX = isMobile ? 0.28 : Math.min(Math.max(viewport.width * 0.26, 1.45), 2.05);
-  const clusterShiftX = isMobile ? 0.14 : 0.24;
-  const clusterOffsetY = isMobile ? -0.40 : -0.10;
-  const terracottaRadius = isMobile ? Math.min(viewport.width * 0.46, 1.70) : 2.15;
+  // Compute responsive layout offsets using viewport in world units
+  // Framed generously on the right side of the hero section on desktop
+  const clusterOffsetX = Math.min(Math.max(viewport.width * 0.26, 1.45), 2.05);
+  const clusterShiftX = 0.20;
+  const clusterOffsetY = -0.34;
+  const terracottaRadius = 2.70; // Restored to original full stage scale
+
+  const activeRobotConfigs = DESKTOP_ROBOT_CONFIGS;
 
   // Frame animation loop with zero heap allocation
   useFrame((state) => {
@@ -331,7 +396,7 @@ function SceneContent({
     const pX = windowPointerRef.current.active ? windowPointerRef.current.x : pointer.x;
     const pY = windowPointerRef.current.active ? windowPointerRef.current.y : pointer.y;
 
-    const targetCamX = cameraTargetRef.current.posX + pX * (isMobile ? 0.03 : 0.06);
+    const targetCamX = cameraTargetRef.current.posX + pX * (isMobile ? 0.02 : 0.06);
     const targetCamY = cameraTargetRef.current.posY + pY * (isMobile ? 0.02 : 0.05);
     const targetCamZ = cameraTargetRef.current.posZ;
 
@@ -365,9 +430,10 @@ function SceneContent({
 
     // 3. Terracotta stage disc discrete waypoint state (fully visible tilted stage beneath robots)
     if (discMeshRef.current) {
+      const baseDiscY = isMobile ? -0.70 : -0.96;
       discMeshRef.current.position.y = THREE.MathUtils.lerp(
         discMeshRef.current.position.y,
-        -0.84 + cameraTargetRef.current.discY,
+        baseDiscY + cameraTargetRef.current.discY,
         0.08
       );
       discMeshRef.current.rotation.x = THREE.MathUtils.lerp(
@@ -411,25 +477,44 @@ function SceneContent({
         castShadow={false}
       />
 
-      {/* Terracotta Upward Rim Glow from beneath */}
-      <pointLight position={[clusterOffsetX, clusterOffsetY - 0.70, 0.2]} intensity={4.2} color="#d96342" distance={9} />
-      <pointLight position={[clusterOffsetX + clusterShiftX * 0.5, clusterOffsetY - 0.40, 0.6]} intensity={2.5} color="#b85438" distance={8} />
+      {/* Terracotta Upward Rim Glow centered directly beneath Robot 1 */}
+      <pointLight
+        position={[
+          clusterOffsetX + clusterShiftX + 0.16,
+          clusterOffsetY - 0.94,
+          0.38,
+        ]}
+        intensity={4.8}
+        color="#d96342"
+        distance={11.0}
+      />
+      {/* Soft fill point light extending warmth toward the left robots */}
+      <pointLight
+        position={[
+          clusterOffsetX - 0.28,
+          clusterOffsetY - 0.82,
+          -0.05,
+        ]}
+        intensity={1.8}
+        color="#b85438"
+        distance={8.5}
+      />
 
       {/* Cluster Group containing the floating terracotta flat space & Robot Heads */}
       <group position={[clusterOffsetX, clusterOffsetY, 0]}>
-        {/* FLOATING TERRACOTTA GRADIENT FLAT STAGE (48 segments) */}
+        {/* FLOATING TERRACOTTA GRADIENT FLAT STAGE (Original expansive 2.70 radius stage) */}
         <mesh
           ref={discMeshRef}
-          position={[clusterShiftX * 0.5, -0.84, 0.15]}
+          position={[clusterShiftX + 0.14, -0.96, 0.30]}
           rotation={[-Math.PI * 0.38, 0, 0]}
           material={terracottaFlatSpaceMaterial}
         >
-          <circleGeometry args={[terracottaRadius, 48]} />
+          <circleGeometry args={[terracottaRadius, 64]} />
         </mesh>
 
-        {/* 4 STYLIZED ROBOT HEADS WITH HIERARCHICAL MATERIALS */}
+        {/* STYLIZED ROBOT HEADS (4 robots on Desktop) */}
         <group ref={clusterGroupRef} position={[clusterShiftX, 0, 0]}>
-          {ROBOT_CONFIGS.map((config, index) => (
+          {activeRobotConfigs.map((config, index) => (
             <RobotHead
               key={config.id}
               ref={headRefs[index]}
@@ -437,9 +522,21 @@ function SceneContent({
               rotation={config.rot}
               scale={config.scale}
               phase={config.phase}
-              bodyMaterial={index === 0 ? heroBodyMaterial : backgroundBodyMaterial}
-              jawMaterial={index === 0 ? heroJawMaterial : backgroundJawMaterial}
-              eyeMaterial={eyeMaterial}
+              bodyMaterial={
+                index === 0
+                  ? heroBodyMaterial
+                  : index === 3
+                  ? distantBodyMaterial
+                  : backgroundBodyMaterial
+              }
+              jawMaterial={
+                index === 0
+                  ? heroJawMaterial
+                  : index === 3
+                  ? distantJawMaterial
+                  : backgroundJawMaterial
+              }
+              eyeMaterial={index === 3 ? distantEyeMaterial : eyeMaterial}
               rivetMaterial={rivetMaterial}
               eyeGlowTexture={eyeGlowTex}
               globalPointerRef={windowPointerRef}
@@ -474,6 +571,11 @@ export default function Scene3D({
   activeWaypointIndex = 0,
   onStatsUpdate,
 }: Scene3DProps) {
+  // Completely delete the 3D scene, robots, floor and animations on mobile
+  if (isMobile) {
+    return null;
+  }
+
   const dpr = useMemo(() => {
     if (typeof window === 'undefined') return 1;
     // Cap mobile to 1.5x DPR to avoid fillrate throttling on dense 3x retina displays

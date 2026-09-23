@@ -224,20 +224,21 @@ export function createSmallTerracottaGradientTexture(): THREE.CanvasTexture {
   ctx.clearRect(0, 0, width, height);
 
   // Radial terracotta gradient from bright terracotta core to dark edge
+  // Expansive, rich radial terracotta stage gradient with radiant core and smooth atmospheric falloff
   const grad = ctx.createRadialGradient(
     width * 0.5,
     height * 0.5,
-    5,
+    3,
     width * 0.5,
     height * 0.5,
-    width * 0.45
+    width * 0.48
   );
-  grad.addColorStop(0, 'rgba(224, 107, 72, 0.95)'); // Luminous warm terracotta core
-  grad.addColorStop(0.28, 'rgba(184, 84, 56, 0.85)'); // Signature Atrium terracotta
-  grad.addColorStop(0.60, 'rgba(120, 42, 24, 0.55)'); // Deep roasted terracotta
-  grad.addColorStop(0.82, 'rgba(35, 15, 12, 0.20)'); // Soft dark edge
-  grad.addColorStop(0.95, 'rgba(0, 0, 0, 0)'); // Clean fade to outer black
-  grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+  grad.addColorStop(0, 'rgba(235, 115, 80, 0.96)'); // Radiant warm terracotta core
+  grad.addColorStop(0.26, 'rgba(184, 84, 56, 0.88)'); // Signature Atrium terracotta
+  grad.addColorStop(0.56, 'rgba(125, 45, 26, 0.55)'); // Deep roasted terracotta
+  grad.addColorStop(0.78, 'rgba(38, 15, 11, 0.20)'); // Soft dark rim
+  grad.addColorStop(0.94, 'rgba(12, 5, 3, 0.04)'); // Soft ambient falloff
+  grad.addColorStop(1.0, 'rgba(0, 0, 0, 0)'); // Complete zero-alpha transparent edge
 
   ctx.fillStyle = grad;
   ctx.beginPath();

@@ -32,9 +32,9 @@ export const CAMERA_WAYPOINTS: Record<number, SectionWaypoints> = {
       name: 'hero',
       sectionId: 'section-hero',
       label: 'HERO // OVERVIEW',
-      position: [0.0, 0.12, 4.95],
-      lookAt: [0.20, -0.32, 0],
-      fov: 50,
+      position: [0.0, 0.04, 4.40],
+      lookAt: [0.0, -0.04, 0],
+      fov: 44,
     },
   },
 

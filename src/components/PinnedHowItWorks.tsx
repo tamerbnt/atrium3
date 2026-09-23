@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Sparkles, Layers, Sliders, CheckCircle2, ArrowRight } from 'lucide-react';
+import { Sparkles, Layers, Sliders, CheckCircle2, ArrowRight, Workflow, Calendar } from 'lucide-react';
 import { LandingContent, Language } from '../content/copy';
+import { SectionHeader } from './SectionHeader';
 
 interface PinnedHowItWorksProps {
   content: LandingContent;
@@ -20,17 +21,15 @@ export function PinnedHowItWorks({ content, lang, onOpenDemo }: PinnedHowItWorks
 
   return (
     <div className="w-full">
-      <div className="how-header mb-12 text-center sm:text-left">
-        <span className="text-xs font-mono text-[#e06b48] tracking-widest uppercase block mb-2 font-semibold">
-          {content.howItWorks.tag}
-        </span>
-        <h2 className="font-editorial text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-stone-100 leading-tight max-w-3xl">
-          {content.howItWorks.headline}
-        </h2>
-        <p className="text-stone-400 font-normal text-sm sm:text-base mt-3 max-w-xl leading-relaxed font-sans">
-          {content.howItWorks.subline}
-        </p>
-      </div>
+      <SectionHeader
+        icon={Workflow}
+        tag={content.howItWorks.tag}
+        primary={content.howItWorks.headlinePrimary}
+        accent={content.howItWorks.headlineAccent}
+        subline={content.howItWorks.subline}
+        className="how-header"
+        ctaButton={{ text: content.tryStartButton, onClick: onOpenDemo }}
+      />
 
       {/* Interactive Walkthrough Layout: Steps Navigation on Left, Live Telemetry Canvas on Right */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
@@ -154,7 +153,7 @@ export function PinnedHowItWorks({ content, lang, onOpenDemo }: PinnedHowItWorks
               {activeStepIndex === 2 && (
                 <div className="space-y-4">
                   <div className="text-xs font-mono text-stone-400">
-                    <span className="text-[#f28e72] font-semibold">DAILY FLOOR DESK:</span> Client check-ins, till receipts &amp; staff hours in one tap:
+                    <span className="text-[#f28e72] font-semibold">DAILY FLOOR DESK (SAMPLE DATA):</span> Client check-ins, till receipts &amp; staff hours in one tap:
                   </div>
                   <div className="p-4 rounded-xl bg-stone-900/90 border border-stone-800 space-y-2 font-mono text-xs">
                     <div className="flex justify-between items-center text-stone-200 pb-2 border-b border-stone-800">
@@ -178,22 +177,28 @@ export function PinnedHowItWorks({ content, lang, onOpenDemo }: PinnedHowItWorks
               {activeStepIndex === 3 && (
                 <div className="space-y-4">
                   <div className="text-xs font-mono text-stone-400">
-                    <span className="text-[#f28e72] font-semibold">CONSOLIDATED TELEMETRY:</span> Multi-branch revenue without travelling or waiting for midnight calls:
+                    <span className="text-[#f28e72] font-semibold">CONSOLIDATED TELEMETRY (SAMPLE DATA):</span> Multi-branch revenue without travelling or waiting for midnight calls:
                   </div>
                   <div className="grid grid-cols-2 gap-3 font-mono text-xs">
                     <div className="p-3 rounded-lg bg-stone-900/90 border border-stone-800">
-                      <div className="text-[10px] text-stone-500 mb-1">ALGIERS (DIDOUCHE)</div>
+                      <div className="text-[10px] text-stone-500 mb-1 flex justify-between">
+                        <span>ALGIERS (DIDOUCHE)</span>
+                        <span className="text-[#f28e72]">SAMPLE</span>
+                      </div>
                       <div className="text-base font-bold text-stone-100">142,500 DZD</div>
                       <div className="text-[10px] text-emerald-400 mt-1">42 check-ins today</div>
                     </div>
                     <div className="p-3 rounded-lg bg-stone-900/90 border border-stone-800">
-                      <div className="text-[10px] text-stone-500 mb-1">ORAN (AKID LOTFI)</div>
+                      <div className="text-[10px] text-stone-500 mb-1 flex justify-between">
+                        <span>ORAN (AKID LOTFI)</span>
+                        <span className="text-[#f28e72]">SAMPLE</span>
+                      </div>
                       <div className="text-base font-bold text-stone-100">98,200 DZD</div>
                       <div className="text-[10px] text-emerald-400 mt-1">31 check-ins today</div>
                     </div>
                   </div>
                   <div className="p-3 rounded-lg bg-[#e06b48]/10 border border-[#e06b48]/40 flex justify-between items-center text-xs font-mono text-[#f28e72]">
-                    <span>Total Regional Footprint</span>
+                    <span>Total Regional Footprint (Sample)</span>
                     <span className="font-bold">240,700 DZD (Net Active)</span>
                   </div>
                 </div>
@@ -207,10 +212,11 @@ export function PinnedHowItWorks({ content, lang, onOpenDemo }: PinnedHowItWorks
                 <button
                   type="button"
                   onClick={onOpenDemo}
-                  className="px-4 py-2 rounded-lg bg-[#b85438] hover:bg-[#a24830] text-white text-xs font-mono transition flex items-center gap-2 cursor-pointer shadow-md shadow-[#b85438]/20"
+                  className="px-4 py-2 rounded-lg bg-[#b85438] hover:bg-[#a24830] text-white text-xs font-mono font-semibold transition flex items-center gap-2 cursor-pointer shadow-md shadow-[#b85438]/20"
                 >
-                  <span>Experience Full Workflow</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
+                  <Calendar className="w-3.5 h-3.5" />
+                  <span>{content.tryStartButton}</span>
+                  <ArrowRight className="w-3.5 h-3.5 rtl:rotate-180" />
                 </button>
               </div>
             </div>

@@ -41,11 +41,16 @@ export default function App() {
     document.documentElement.lang = lang;
   }, [lang]);
 
-  // Mark hydrated on client mount
+  // Mark hydrated on client mount and update capabilities on resize
   useEffect(() => {
     setIsHydrated(true);
-    const profile = detectDeviceCapabilities();
-    setDeviceProfile(profile);
+    const updateProfile = () => {
+      setDeviceProfile(detectDeviceCapabilities());
+    };
+    updateProfile();
+
+    window.addEventListener('resize', updateProfile, { passive: true });
+    return () => window.removeEventListener('resize', updateProfile);
   }, []);
 
   // IntersectionObserver to pause R3F render loop when 3D hero is out of view
@@ -73,11 +78,11 @@ export default function App() {
 
   const [activeWaypointIndex, setActiveWaypointIndex] = useState(0);
 
-  const hero3DNode = (
+  const hero3DNode = !deviceProfile.isMobile ? (
     <div ref={heroContainerRef} className="w-full h-full relative">
       {activeMode === '3d' ? (
         <Scene3D
-          isMobile={deviceProfile.isMobile}
+          isMobile={false}
           isInView={isInView}
           scrollProgress={0}
           activeWaypointIndex={activeWaypointIndex}
@@ -90,7 +95,7 @@ export default function App() {
         />
       )}
     </div>
-  );
+  ) : null;
 
   const [showDebugHud, setShowDebugHud] = useState(false);
 
