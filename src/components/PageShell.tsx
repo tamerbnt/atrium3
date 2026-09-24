@@ -251,6 +251,12 @@ export default function PageShell({
       // Ignore micro-jitters
       if (Math.abs(e.deltaY) < 16) return;
 
+      // Do not hijack scroll if interaction occurs directly over a horizontal swiper carousel
+      const target = e.target as HTMLElement | null;
+      if (target && target.closest('.swiper-container')) {
+        return;
+      }
+
       const currentIndex = findActiveSectionIndex();
       const currentEl = sectionElements[currentIndex];
       if (!currentEl) return;
@@ -280,21 +286,31 @@ export default function PageShell({
 
     // Touch support (swipe gestures on mobile)
     let touchStartY = 0;
+    let touchStartX = 0;
     let touchStartTime = 0;
+    let isSwiperTarget = false;
 
     const handleTouchStart = (e: TouchEvent) => {
-      touchStartY = e.touches[0].clientY;
+      const touch = e.touches[0];
+      touchStartY = touch.clientY;
+      touchStartX = touch.clientX;
       touchStartTime = Date.now();
+      const target = e.target as HTMLElement | null;
+      isSwiperTarget = !!(target && target.closest('.swiper-container'));
     };
 
     const handleTouchEnd = (e: TouchEvent) => {
       if (isTransitioningRef.current) return;
+      if (isSwiperTarget) return; // Never hijack section transition on card swipers
 
       const touchEndY = e.changedTouches[0].clientY;
+      const touchEndX = e.changedTouches[0].clientX;
       const deltaY = touchStartY - touchEndY; // positive = swipe up = scroll down
+      const deltaX = Math.abs(touchStartX - touchEndX);
       const timeDiff = Date.now() - touchStartTime;
 
-      if (Math.abs(deltaY) < 40 || timeDiff > 650) return;
+      // If user moved predominantly sideways or too short/long, ignore
+      if (Math.abs(deltaY) < 40 || deltaX > Math.abs(deltaY) || timeDiff > 650) return;
 
       const currentIndex = findActiveSectionIndex();
       const currentEl = sectionElements[currentIndex];
@@ -501,19 +517,17 @@ export default function PageShell({
       // 1. Proof Strip / Categories
       setupSectionTransition({
         target: sectionProofStripRef.current,
-        cardsSelector: '.swiper-container',
       });
 
       // 2. Problem
       setupSectionTransition({
         target: sectionProblemRef.current,
-        cardsSelector: '.swiper-container',
       });
 
       // 3. Shift
       setupSectionTransition({
         target: sectionShiftRef.current,
-        cardsSelector: '.swiper-container, .shift-callout',
+        cardsSelector: '.shift-callout',
       });
 
       // 4. Feeling Line

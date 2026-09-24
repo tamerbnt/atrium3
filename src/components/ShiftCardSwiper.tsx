@@ -114,7 +114,9 @@ export function ShiftCardSwiper({
     [isSingleItem, virtualIndex, count, snapToVirtualIndex]
   );
 
-  const handleTransitionEnd = () => {
+  const handleTransitionEnd = (e: React.TransitionEvent<HTMLDivElement>) => {
+    if (e.target !== e.currentTarget) return;
+    if (e.propertyName !== 'transform') return;
     if (isSingleItem) return;
 
     const minThreshold = count;
@@ -181,6 +183,7 @@ export function ShiftCardSwiper({
 
   const handleTouchStart = (e: React.TouchEvent) => {
     if (isSingleItem) return;
+    e.stopPropagation();
     startXRef.current = e.touches[0].clientX;
     startTimeRef.current = Date.now();
     currentDragRef.current = 0;
@@ -189,17 +192,20 @@ export function ShiftCardSwiper({
 
   const handleTouchMove = (e: React.TouchEvent) => {
     if (!isDragging || isSingleItem) return;
+    e.stopPropagation();
     const diff = e.touches[0].clientX - startXRef.current;
     currentDragRef.current = diff;
     setDragOffset(diff);
   };
 
-  const handleTouchEnd = () => {
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    e.stopPropagation();
     handleDragRelease();
   };
 
   const handleMouseDown = (e: React.MouseEvent) => {
     if (isSingleItem) return;
+    e.stopPropagation();
     startXRef.current = e.clientX;
     startTimeRef.current = Date.now();
     currentDragRef.current = 0;
@@ -208,12 +214,14 @@ export function ShiftCardSwiper({
 
   const handleMouseMove = (e: React.MouseEvent) => {
     if (!isDragging || isSingleItem) return;
+    e.stopPropagation();
     const diff = e.clientX - startXRef.current;
     currentDragRef.current = diff;
     setDragOffset(diff);
   };
 
-  const handleMouseUp = () => {
+  const handleMouseUp = (e: React.MouseEvent) => {
+    e.stopPropagation();
     handleDragRelease();
   };
 
