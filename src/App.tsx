@@ -61,28 +61,18 @@ export default function App() {
     return () => window.removeEventListener('resize', updateProfile);
   }, []);
 
-  // IntersectionObserver to pause R3F render loop when 3D hero is out of view
-  // Reliably observes the persistent #section-hero element across all viewport switches
+  // Pause R3F render loop when 3D hero is covered by Section 1.5 or off-screen
   useEffect(() => {
-    const heroElement = document.getElementById('section-hero') || heroContainerRef.current;
-    if (!heroElement) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const entry = entries[0];
-        if (entry) {
-          setIsInView(entry.isIntersecting);
-        }
-      },
-      {
-        threshold: 0.05, // Freeze render loop when hero is off-screen
-      }
-    );
-
-    observer.observe(heroElement);
-    return () => {
-      observer.disconnect();
+    const handleScrollVisibility = () => {
+      const scrollY = window.scrollY || document.documentElement.scrollTop;
+      const windowH = window.innerHeight;
+      // Freeze 3D render loop completely when Section 1.5 curtain has risen over the hero
+      setIsInView(scrollY < windowH * 0.98);
     };
+
+    window.addEventListener('scroll', handleScrollVisibility, { passive: true });
+    handleScrollVisibility();
+    return () => window.removeEventListener('scroll', handleScrollVisibility);
   }, [isHydrated, deviceProfile.isMobile]);
 
   const dpr = typeof window !== 'undefined' ? Math.min(window.devicePixelRatio || 1, 2) : 1;

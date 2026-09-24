@@ -77,8 +77,8 @@ export function SmoothScroll({
       smoothWheel: !prefersReducedMotion,
       syncTouch: false,
       // Buttery smooth lerp inertia tuned for physical spatial parallax
-      lerp: prefersReducedMotion ? 1 : 0.085,
-      wheelMultiplier: 0.95,
+      lerp: prefersReducedMotion ? 1 : 0.095,
+      wheelMultiplier: 1.05,
       touchMultiplier: 1.25,
       infinite: false,
       anchors: true,

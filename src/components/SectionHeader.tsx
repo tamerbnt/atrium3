@@ -72,7 +72,7 @@ export function SectionHeader({
 
       {/* CTA Button exactly beneath text header */}
       {ctaButton && (
-        <div className={`mt-5 flex items-center ${isCenter ? 'justify-center' : 'justify-start'}`}>
+        <div className={`section-cta-wrap mt-5 flex items-center ${isCenter ? 'justify-center' : 'justify-start'}`}>
           {React.isValidElement(ctaButton) ? (
             ctaButton
           ) : (

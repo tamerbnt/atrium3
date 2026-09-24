@@ -326,7 +326,7 @@ export function CategoryCardSwiper({
                     onSelectCategory(cat.id);
                   }
                 }}
-                className={`shrink-0 transition-all duration-500 ease-out cursor-pointer ${
+                className={`proof-swiper-card shrink-0 transition-all duration-500 ease-out cursor-pointer ${
                   isCenterFocused
                     ? 'scale-100 opacity-100 z-10'
                     : 'scale-[0.92] opacity-40 hover:opacity-75 z-0'
@@ -335,7 +335,8 @@ export function CategoryCardSwiper({
                   width: `${cardWidth}px`,
                 }}
               >
-                <SpotlightCard
+                <div className="proof-card-anim h-full w-full">
+                  <SpotlightCard
                   spotlightColor="rgba(224, 107, 72, 0.3)"
                   borderColor={
                     isCenterFocused
@@ -395,6 +396,7 @@ export function CategoryCardSwiper({
                     </span>
                   </div>
                 </SpotlightCard>
+                </div>
               </div>
             );
           })}

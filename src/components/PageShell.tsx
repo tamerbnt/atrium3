@@ -73,9 +73,13 @@ export default function PageShell({
   const isTransitioningRef = useRef(false);
   const transitionTimerRef = useRef<NodeJS.Timeout | null>(null);
 
+  const isSnappingRef = useRef(false);
+  const snapTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const proofHorizonTlRef = useRef<gsap.core.Timeline | null>(null);
+
   const { lenis, scrollTo: lenisScrollTo } = useLenis(
-    useCallback(() => {
-      const scrollY = window.scrollY || document.documentElement.scrollTop;
+    useCallback((lenisInstance: any) => {
+      const scrollY = lenisInstance?.scroll ?? (window.scrollY || document.documentElement.scrollTop);
       setIsScrolled(scrollY > 60);
 
       const prevScrollY = lastScrollYRef.current;
@@ -89,69 +93,82 @@ export default function PageShell({
         setIsNavVisible(true);
       }
       lastScrollYRef.current = scrollY;
+
+      // Active section spy
+      const sectionIds = [
+        'section-hero',
+        'section-proof-strip',
+        'section-problem',
+        'section-shift',
+        'section-how-it-works',
+        'section-verticals',
+        'section-differentiation',
+        'section-pricing',
+        'section-faq',
+      ];
+      const scrollPos = scrollY + 160;
+      for (let i = sectionIds.length - 1; i >= 0; i--) {
+        const el = document.getElementById(sectionIds[i]);
+        if (el && scrollPos >= el.offsetTop) {
+          setActiveSectionId(sectionIds[i]);
+          break;
+        }
+      }
+
+      // Smooth trigger glide strictly between Hero and Section 1.5
+      const windowH = window.innerHeight;
+      if (!isSnappingRef.current && lenisInstance) {
+        // Downward glide from hero when user scrolls down
+        if (scrollY < windowH * 0.75 && lenisInstance.direction === 1) {
+          isSnappingRef.current = true;
+          if (snapTimerRef.current) clearTimeout(snapTimerRef.current);
+          lenisInstance.scrollTo('#section-proof-strip', {
+            duration: 0.85,
+            offset: 0,
+            force: true,
+            easing: (t: number) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+            onComplete: () => {
+              isSnappingRef.current = false;
+              proofHorizonTlRef.current?.restart();
+            },
+          });
+          snapTimerRef.current = setTimeout(() => {
+            isSnappingRef.current = false;
+          }, 900);
+        }
+        // Upward glide from top of Section 1.5 when user scrolls back to hero
+        else if (scrollY > 40 && scrollY <= windowH + 40 && lenisInstance.direction === -1) {
+          isSnappingRef.current = true;
+          proofHorizonTlRef.current?.reverse();
+          if (snapTimerRef.current) clearTimeout(snapTimerRef.current);
+          lenisInstance.scrollTo(0, {
+            duration: 0.85,
+            offset: 0,
+            force: true,
+            easing: (t: number) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+            onComplete: () => {
+              isSnappingRef.current = false;
+            },
+          });
+          snapTimerRef.current = setTimeout(() => {
+            isSnappingRef.current = false;
+          }, 900);
+        }
+      }
     }, [])
   );
 
   const scrollTo = (id: string) => {
     isTransitioningRef.current = true;
     if (transitionTimerRef.current) clearTimeout(transitionTimerRef.current);
-    lenisScrollTo(`#${id}`, { offset: -40, duration: 1.0 });
+    if (id === 'section-proof-strip') {
+      proofHorizonTlRef.current?.restart();
+    }
+    lenisScrollTo(`#${id}`, { offset: id === 'section-proof-strip' ? 0 : -40, duration: 1.0 });
     transitionTimerRef.current = setTimeout(() => {
       isTransitioningRef.current = false;
     }, 1100);
   };
-
-  // Apple-style floating navbar scroll listener & active section spy
-  useEffect(() => {
-    const sectionIds = [
-      'section-hero',
-      'section-proof-strip',
-      'section-problem',
-      'section-shift',
-      'section-how-it-works',
-      'section-verticals',
-      'section-differentiation',
-      'section-pricing',
-      'section-faq',
-    ];
-
-    const handleScroll = () => {
-      const scrollY = window.scrollY || document.documentElement.scrollTop;
-      setIsScrolled(scrollY > 60);
-
-      const prevScrollY = lastScrollYRef.current;
-      const delta = scrollY - prevScrollY;
-
-      if (scrollY <= 20) {
-        setIsNavVisible(true);
-      } else if (delta > 6 && scrollY > 60) {
-        setIsNavVisible(false);
-      } else if (delta < -6) {
-        setIsNavVisible(true);
-      }
-      lastScrollYRef.current = scrollY;
-
-      // Determine active section based on scroll position
-      const scrollPos = scrollY + 160;
-      let currentSection = sectionIds[0];
-
-      for (let i = sectionIds.length - 1; i >= 0; i--) {
-        const el = document.getElementById(sectionIds[i]);
-        if (el) {
-          const top = el.offsetTop;
-          if (scrollPos >= top) {
-            currentSection = sectionIds[i];
-            break;
-          }
-        }
-      }
-      setActiveSectionId(currentSection);
-    };
-
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    handleScroll();
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
 
   const currentVertical =
     content.verticals.items.find((v) => v.id === activeVertical) || content.verticals.items[0];
@@ -172,176 +189,27 @@ export default function PageShell({
   const sectionFinalCtaRef = useRef<HTMLElement>(null);
   const heroGlowRef = useRef<HTMLDivElement>(null);
 
-  /**
-   * SECTION BOUNDARY TRANSITION MANAGER:
-   * Inside any content-rich section (Categories, Problem, Shift, How It Works, Verticals, Pricing, etc.):
-   * normal, uninhibited scrolling applies so all cards, sliders, and tabs are fully visible and readable.
-   * When the user reaches the end of the section (or is on a single-viewport beat like Hero/Feeling Line),
-   * any subsequent scroll down ("a little or a lot") smoothly glides/loads the next section into full view.
-   */
+  // Keyboard navigation support between Hero and Section 1.5
   useEffect(() => {
-    const prefersReducedMotion =
-      typeof window !== 'undefined' &&
-      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const scrollY = window.scrollY || document.documentElement.scrollTop;
+      const windowH = window.innerHeight;
 
-    if (prefersReducedMotion) return;
-
-    const sectionElements = [
-      sectionHeroRef.current,
-      sectionProofStripRef.current,
-      sectionProblemRef.current,
-      sectionShiftRef.current,
-      sectionFeelingRef.current,
-      sectionHowRef.current,
-      sectionVerticalsRef.current,
-      sectionDiffRef.current,
-      sectionDashboardRef.current,
-      sectionPricingRef.current,
-      sectionProofRef.current,
-      sectionFaqRef.current,
-      sectionFinalCtaRef.current,
-    ].filter(Boolean) as HTMLElement[];
-
-    if (sectionElements.length === 0) return;
-
-    const findActiveSectionIndex = () => {
-      for (let i = 0; i < sectionElements.length; i++) {
-        const rect = sectionElements[i].getBoundingClientRect();
-        if (rect.top <= 120 && rect.bottom > 120) {
-          return i;
-        }
-      }
-      let closest = 0;
-      let minDistance = Infinity;
-      for (let i = 0; i < sectionElements.length; i++) {
-        const dist = Math.abs(sectionElements[i].getBoundingClientRect().top);
-        if (dist < minDistance) {
-          minDistance = dist;
-          closest = i;
-        }
-      }
-      return closest;
-    };
-
-    const goToSection = (targetIndex: number) => {
-      if (targetIndex < 0 || targetIndex >= sectionElements.length) return;
-      const targetEl = sectionElements[targetIndex];
-      if (!targetEl) return;
-
-      isTransitioningRef.current = true;
-      if (transitionTimerRef.current) clearTimeout(transitionTimerRef.current);
-
-      lenisScrollTo(targetEl, {
-        duration: 0.95,
-        offset: 0,
-        easing: (t: number) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
-      });
-
-      transitionTimerRef.current = setTimeout(() => {
-        isTransitioningRef.current = false;
-      }, 1000);
-    };
-
-    const handleWheel = (e: WheelEvent) => {
-      if (isTransitioningRef.current) {
+      if ((e.key === 'ArrowDown' || e.key === 'PageDown') && scrollY < 80) {
         e.preventDefault();
-        return;
-      }
-
-      // Ignore micro-jitters
-      if (Math.abs(e.deltaY) < 16) return;
-
-      // Do not hijack scroll if interaction occurs directly over a horizontal swiper carousel
-      const target = e.target as HTMLElement | null;
-      if (target && target.closest('.swiper-container')) {
-        return;
-      }
-
-      const currentIndex = findActiveSectionIndex();
-      const currentEl = sectionElements[currentIndex];
-      if (!currentEl) return;
-
-      const rect = currentEl.getBoundingClientRect();
-      const windowHeight = window.innerHeight;
-
-      // Scrolling DOWN
-      if (e.deltaY > 0) {
-        // User reaches the end of the section
-        const isAtEnd = rect.bottom <= windowHeight + 35;
-        if (isAtEnd && currentIndex < sectionElements.length - 1) {
-          e.preventDefault();
-          goToSection(currentIndex + 1);
-        }
-      }
-      // Scrolling UP
-      else if (e.deltaY < 0) {
-        // User reaches the beginning of the section
-        const isAtStart = rect.top >= -35;
-        if (isAtStart && currentIndex > 0) {
-          e.preventDefault();
-          goToSection(currentIndex - 1);
-        }
+        lenisScrollTo('#section-proof-strip', { duration: 1.15, offset: 0 });
+      } else if (
+        (e.key === 'ArrowUp' || e.key === 'PageUp') &&
+        scrollY >= windowH - 60 &&
+        scrollY <= windowH + 60
+      ) {
+        e.preventDefault();
+        lenisScrollTo(0, { duration: 1.1, offset: 0 });
       }
     };
 
-    // Touch support (swipe gestures on mobile)
-    let touchStartY = 0;
-    let touchStartX = 0;
-    let touchStartTime = 0;
-    let isSwiperTarget = false;
-
-    const handleTouchStart = (e: TouchEvent) => {
-      const touch = e.touches[0];
-      touchStartY = touch.clientY;
-      touchStartX = touch.clientX;
-      touchStartTime = Date.now();
-      const target = e.target as HTMLElement | null;
-      isSwiperTarget = !!(target && target.closest('.swiper-container'));
-    };
-
-    const handleTouchEnd = (e: TouchEvent) => {
-      if (isTransitioningRef.current) return;
-      if (isSwiperTarget) return; // Never hijack section transition on card swipers
-
-      const touchEndY = e.changedTouches[0].clientY;
-      const touchEndX = e.changedTouches[0].clientX;
-      const deltaY = touchStartY - touchEndY; // positive = swipe up = scroll down
-      const deltaX = Math.abs(touchStartX - touchEndX);
-      const timeDiff = Date.now() - touchStartTime;
-
-      // If user moved predominantly sideways or too short/long, ignore
-      if (Math.abs(deltaY) < 40 || deltaX > Math.abs(deltaY) || timeDiff > 650) return;
-
-      const currentIndex = findActiveSectionIndex();
-      const currentEl = sectionElements[currentIndex];
-      if (!currentEl) return;
-
-      const rect = currentEl.getBoundingClientRect();
-      const windowHeight = window.innerHeight;
-
-      if (deltaY > 0) {
-        const isAtEnd = rect.bottom <= windowHeight + 40;
-        if (isAtEnd && currentIndex < sectionElements.length - 1) {
-          goToSection(currentIndex + 1);
-        }
-      } else {
-        const isAtStart = rect.top >= -40;
-        if (isAtStart && currentIndex > 0) {
-          goToSection(currentIndex - 1);
-        }
-      }
-    };
-
-    window.addEventListener('wheel', handleWheel, { passive: false });
-    window.addEventListener('touchstart', handleTouchStart, { passive: true });
-    window.addEventListener('touchend', handleTouchEnd, { passive: true });
-
-    return () => {
-      if (transitionTimerRef.current) clearTimeout(transitionTimerRef.current);
-      window.removeEventListener('wheel', handleWheel);
-      window.removeEventListener('touchstart', handleTouchStart);
-      window.removeEventListener('touchend', handleTouchEnd);
-    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, [lenisScrollTo]);
 
   /**
@@ -386,6 +254,36 @@ export default function PageShell({
             { clipPath: 'inset(0 0 0% 0)', y: 0, opacity: 1, duration: 0.75, ease: 'power3.out' },
             0.25
           );
+      }
+
+      // Hero exit motion during Section 1.5 Curtain Reveal:
+      // Hero remains anchored via CSS sticky while Section 1.5 slides UP over it
+      if (!prefersReducedMotion && sectionProofStripRef.current) {
+        // Cinematic exit motion: Hero typography & 3D cluster scale subtly down and dim as curtain rises
+        gsap.to('.hero-inner-content', {
+          opacity: 0.15,
+          scale: 0.94,
+          y: -20,
+          ease: 'none',
+          scrollTrigger: {
+            trigger: sectionProofStripRef.current,
+            start: 'top bottom',
+            end: 'top top',
+            scrub: true,
+          },
+        });
+
+        gsap.to('.hero-3d-layer', {
+          opacity: 0.2,
+          scale: 0.95,
+          ease: 'none',
+          scrollTrigger: {
+            trigger: sectionProofStripRef.current,
+            start: 'top bottom',
+            end: 'top top',
+            scrub: true,
+          },
+        });
       }
 
       // Reusable setup for Effect 1 (Arrival from below, covering previous) + Effect 2 (Masked text reveal)
@@ -514,10 +412,119 @@ export default function PageShell({
       };
 
       // Set up each section in sequence:
-      // 1. Proof Strip / Categories
-      setupSectionTransition({
-        target: sectionProofStripRef.current,
-      });
+      // 1. Proof Strip / Categories — Typographic Horizon Rise + One-By-One Staggered Reveal
+      const proofTarget = sectionProofStripRef.current;
+      if (proofTarget) {
+        const tag = proofTarget.querySelector('.section-tag');
+        const headline = proofTarget.querySelector('.section-headline');
+        const subline = proofTarget.querySelector('.section-subline');
+        const ctaWrap = proofTarget.querySelector('.section-cta-wrap');
+        const exploreLink = proofTarget.querySelector('.proof-explore-link');
+        const cardAnims = proofTarget.querySelectorAll('.proof-card-anim');
+        const swiper = proofTarget.querySelector('.swiper-container');
+
+        // Master horizon reveal timeline directly powered by ScrollTrigger
+        const horizonTl = gsap.timeline({
+          scrollTrigger: {
+            trigger: proofTarget,
+            start: 'top 70%',
+            toggleActions: 'play reverse play reverse',
+          },
+        });
+        proofHorizonTlRef.current = horizonTl;
+
+        // 1. Domain pill arrives first
+        if (tag) {
+          horizonTl.fromTo(
+            tag,
+            { opacity: 0, y: 16 },
+            { opacity: 1, y: 0, duration: 0.45, ease: 'power2.out' },
+            0
+          );
+        }
+
+        // 2. Headline rises through horizontal mask
+        if (headline) {
+          horizonTl.fromTo(
+            headline,
+            {
+              clipPath: 'inset(0 0 100% 0)',
+              y: 32,
+              opacity: 0,
+            },
+            {
+              clipPath: 'inset(0 0 0% 0)',
+              y: 0,
+              opacity: 1,
+              duration: 0.85,
+              ease: 'power3.out',
+            },
+            0.12
+          );
+        }
+
+        // 3. Subheadline rises through horizontal mask
+        if (subline) {
+          horizonTl.fromTo(
+            subline,
+            {
+              clipPath: 'inset(0 0 100% 0)',
+              y: 22,
+              opacity: 0,
+            },
+            {
+              clipPath: 'inset(0 0 0% 0)',
+              y: 0,
+              opacity: 1,
+              duration: 0.75,
+              ease: 'power3.out',
+            },
+            0.28
+          );
+        }
+
+        // 4. CTA button and Explore link glide in
+        if (ctaWrap) {
+          horizonTl.fromTo(
+            ctaWrap,
+            { opacity: 0, y: 16 },
+            { opacity: 1, y: 0, duration: 0.5, ease: 'power2.out' },
+            0.42
+          );
+        }
+
+        if (exploreLink) {
+          horizonTl.fromTo(
+            exploreLink,
+            { opacity: 0, x: 20 },
+            { opacity: 1, x: 0, duration: 0.55, ease: 'power2.out' },
+            0.46
+          );
+        }
+
+        // 5. Category cards cascade in sequentially one by one
+        if (cardAnims && cardAnims.length > 0) {
+          horizonTl.fromTo(
+            cardAnims,
+            { opacity: 0, y: 35 },
+            {
+              opacity: 1,
+              y: 0,
+              duration: 0.65,
+              stagger: 0.08,
+              ease: 'power2.out',
+            },
+            0.52
+          );
+        } else if (swiper) {
+          horizonTl.fromTo(
+            swiper,
+            { opacity: 0, y: 35 },
+            { opacity: 1, y: 0, duration: 0.75, ease: 'power2.out' },
+            0.52
+          );
+        }
+      }
 
       // 2. Problem
       setupSectionTransition({
@@ -909,120 +916,129 @@ export default function PageShell({
       </div>
 
       {/* ------------------------------------------------------------- */}
-      {/* SECTION 1 — HERO */}
-      {/* Responsive layout: clean, fast typography on mobile, interactive 3D hero on desktop (lg+) */}
+      {/* HERO & CURTAIN TRANSITION TRACK */}
+      {/* Dedicated track where Section 1 stays sticky at top and Section 1.5 rises over it */}
       {/* ------------------------------------------------------------- */}
-      <section
-        id="section-hero"
-        ref={sectionHeroRef}
-        className="relative z-10 w-full min-h-[100dvh] bg-black overflow-hidden flex flex-col justify-start lg:justify-center pt-20 sm:pt-24 lg:pt-0"
-      >
-        {/* Full-bleed 3D Scene Layer: Desktop-only (lg+), completely excluded on mobile */}
-        {hero3DNode && (
-          <div className="hidden lg:block absolute inset-0 z-0 pointer-events-none">
-            {hero3DNode}
-          </div>
-        )}
+      <div className="hero-curtain-stage relative w-full">
+        {/* ------------------------------------------------------------- */}
+        {/* SECTION 1 — HERO */}
+        {/* Responsive layout: clean, fast typography on mobile, interactive 3D hero on desktop (lg+) */}
+        {/* ------------------------------------------------------------- */}
+        <section
+          id="section-hero"
+          ref={sectionHeroRef}
+          className="sticky top-0 z-10 w-full h-[100dvh] bg-black overflow-hidden flex flex-col justify-start lg:justify-center pt-20 sm:pt-24 lg:pt-0"
+        >
+          {/* Full-bleed 3D Scene Layer: Desktop-only (lg+), completely excluded on mobile */}
+          {hero3DNode && (
+            <div className="hero-3d-layer hidden lg:block absolute inset-0 z-0 pointer-events-none will-change-transform">
+              {hero3DNode}
+            </div>
+          )}
 
-        {/* Hero Content Overlay Layer */}
-        <div className="relative z-10 px-5 sm:px-8 lg:px-12 max-w-7xl mx-auto w-full flex-1 flex flex-col justify-between lg:justify-center pointer-events-auto pb-6 sm:pb-8 lg:pb-0">
-          <div className="max-w-xl lg:max-w-lg pt-1 sm:pt-4 lg:pt-0 relative z-10 pointer-events-auto">
-            {/* Category eyebrow */}
-            <div className="hero-eyebrow inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-white/[0.05] border border-white/[0.08] text-[10px] sm:text-xs font-mono text-stone-300 mb-3 sm:mb-4">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#b85438] animate-pulse" />
-              <span>{content.hero.badge}</span>
+          {/* Hero Content Overlay Layer */}
+          <div className="hero-inner-content relative z-10 px-5 sm:px-8 lg:px-12 max-w-7xl mx-auto w-full flex-1 flex flex-col justify-between lg:justify-center pointer-events-auto pb-6 sm:pb-8 lg:pb-0 will-change-transform">
+            <div className="max-w-xl lg:max-w-lg pt-1 sm:pt-4 lg:pt-0 relative z-10 pointer-events-auto">
+              {/* Category eyebrow */}
+              <div className="hero-eyebrow inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-white/[0.05] border border-white/[0.08] text-[10px] sm:text-xs font-mono text-stone-300 mb-3 sm:mb-4">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#b85438] animate-pulse" />
+                <span>{content.hero.badge}</span>
+              </div>
+
+              {/* Headline: Atrium alone in terracotta, as a service beneath it */}
+              <h1 className="hero-headline font-editorial text-4xl sm:text-6xl lg:text-7xl xl:text-8xl font-extrabold tracking-tight leading-[1.0] mb-3 sm:mb-4">
+                <span className="block text-[#b85438]">{content.hero.brandName}</span>
+                <span className="block text-stone-100 text-2xl sm:text-4xl lg:text-5xl font-light tracking-normal mt-0.5">
+                  {content.hero.serviceLine}
+                </span>
+              </h1>
+
+              {/* Subheadline: Tightened spacing, clean contrast */}
+              <p className="hero-subheadline text-xs sm:text-sm text-stone-300 font-normal leading-relaxed font-sans max-w-md mb-4 sm:mb-6">
+                {content.hero.subheadline}
+              </p>
+
+              {/* ONE Primary CTA Button — Touch-friendly thumb target on mobile */}
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 sm:gap-3.5 mb-3 sm:mb-6">
+                <button
+                  type="button"
+                  onClick={onOpenDemo}
+                  className="w-full sm:w-auto min-h-[48px] px-6 py-3.5 sm:py-3 rounded-lg bg-[#b85438] hover:bg-[#a24830] active:scale-[0.98] text-white font-semibold text-xs tracking-wider uppercase transition shadow-xl shadow-[#b85438]/25 cursor-pointer flex items-center justify-center gap-2.5 whitespace-nowrap shrink-0 touch-manipulation"
+                >
+                  <Calendar className="w-4 h-4 shrink-0" />
+                  <span className="whitespace-nowrap">{content.hero.ctaButton}</span>
+                </button>
+
+                <span className="text-[10px] sm:text-[11px] font-mono text-stone-400 text-center sm:text-left whitespace-nowrap">
+                  {lang === 'ar'
+                    ? 'تجربة مجانية 14 يوماً • بدون بطاقة بنكية • إعداد فوري'
+                    : lang === 'fr'
+                    ? 'Essai gratuit 14 jours • Sans carte • Configuration rapide'
+                    : '14-day free trial • No card required • Instant setup'}
+                </span>
+              </div>
             </div>
 
-            {/* Headline: Atrium alone in terracotta, as a service beneath it */}
-            <h1 className="hero-headline font-editorial text-4xl sm:text-6xl lg:text-7xl xl:text-8xl font-extrabold tracking-tight leading-[1.0] mb-3 sm:mb-4">
-              <span className="block text-[#b85438]">{content.hero.brandName}</span>
-              <span className="block text-stone-100 text-2xl sm:text-4xl lg:text-5xl font-light tracking-normal mt-0.5">
-                {content.hero.serviceLine}
-              </span>
-            </h1>
-
-            {/* Subheadline: Tightened spacing, clean contrast */}
-            <p className="hero-subheadline text-xs sm:text-sm text-stone-300 font-normal leading-relaxed font-sans max-w-md mb-4 sm:mb-6">
-              {content.hero.subheadline}
-            </p>
-
-            {/* ONE Primary CTA Button — Touch-friendly thumb target on mobile */}
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 sm:gap-3.5 mb-3 sm:mb-6">
+            {/* Scroll Indicator Prompt with clear, unobstructed background */}
+            <div className="pt-2 sm:pt-3 lg:pt-4 flex items-center relative z-10 pointer-events-auto">
               <button
                 type="button"
-                onClick={onOpenDemo}
-                className="w-full sm:w-auto min-h-[48px] px-6 py-3.5 sm:py-3 rounded-lg bg-[#b85438] hover:bg-[#a24830] active:scale-[0.98] text-white font-semibold text-xs tracking-wider uppercase transition shadow-xl shadow-[#b85438]/25 cursor-pointer flex items-center justify-center gap-2.5 whitespace-nowrap shrink-0 touch-manipulation"
+                onClick={() => scrollTo('section-proof-strip')}
+                className="flex items-center gap-2 text-[11px] font-mono text-stone-400 hover:text-stone-200 transition cursor-pointer group py-1"
               >
-                <Calendar className="w-4 h-4 shrink-0" />
-                <span className="whitespace-nowrap">{content.hero.ctaButton}</span>
+                <ArrowDownRight className="w-3.5 h-3.5 text-[#b85438] group-hover:translate-y-0.5 group-hover:translate-x-0.5 transition-transform shrink-0" />
+                <span className="whitespace-nowrap">{content.hero.scrollHint}</span>
               </button>
-
-              <span className="text-[10px] sm:text-[11px] font-mono text-stone-400 text-center sm:text-left whitespace-nowrap">
-                {lang === 'ar'
-                  ? 'تجربة مجانية 14 يوماً • بدون بطاقة بنكية • إعداد فوري'
-                  : lang === 'fr'
-                  ? 'Essai gratuit 14 jours • Sans carte • Configuration rapide'
-                  : '14-day free trial • No card required • Instant setup'}
-              </span>
             </div>
           </div>
+        </section>
 
-          {/* Scroll Indicator Prompt with clear, unobstructed background */}
-          <div className="pt-2 sm:pt-3 lg:pt-4 flex items-center relative z-10 pointer-events-auto">
-            <button
-              type="button"
-              onClick={() => scrollTo('section-proof-strip')}
-              className="flex items-center gap-2 text-[11px] font-mono text-stone-400 hover:text-stone-200 transition cursor-pointer group py-1"
-            >
-              <ArrowDownRight className="w-3.5 h-3.5 text-[#b85438] group-hover:translate-y-0.5 group-hover:translate-x-0.5 transition-transform shrink-0" />
-              <span className="whitespace-nowrap">{content.hero.scrollHint}</span>
-            </button>
-          </div>
-        </div>
-      </section>
+        {/* ------------------------------------------------------------- */}
+        {/* SECTION 1.5 — SIX-CATEGORY PROOF STRIP (Immediate Breadth Proof) */}
+        {/* Proves multi-vertical scope immediately following the hero */}
+        {/* ------------------------------------------------------------- */}
+        <section
+          id="section-proof-strip"
+          ref={sectionProofStripRef}
+          className="relative z-20 w-full min-h-[100dvh] py-10 sm:py-14 lg:py-16 px-6 sm:px-12 border-t border-stone-800/80 bg-stone-950 shadow-[0_-40px_90px_rgba(0,0,0,0.98),0_-1px_0_rgba(255,255,255,0.06)] flex flex-col justify-center will-change-transform"
+        >
+          {/* Ambient studio light catch on rising sheet edge */}
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-5xl h-px bg-gradient-to-r from-transparent via-[#b85438]/50 to-transparent pointer-events-none" />
 
-      {/* ------------------------------------------------------------- */}
-      {/* SECTION 1.5 — SIX-CATEGORY PROOF STRIP (Immediate Breadth Proof) */}
-      {/* Proves multi-vertical scope immediately following the hero */}
-      {/* ------------------------------------------------------------- */}
-      <section
-        id="section-proof-strip"
-        ref={sectionProofStripRef}
-        className="relative z-20 w-full py-20 sm:py-28 px-6 sm:px-12 border-t border-stone-800/80 bg-stone-950 shadow-[0_-30px_70px_rgba(0,0,0,0.95)] flex flex-col justify-center"
-      >
-        <div className="max-w-6xl mx-auto">
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10 pb-6">
-            <div className="max-w-2xl">
-              <SectionHeader
-                icon={Layers}
-                tag={content.proofStrip.tag}
-                primary={content.proofStrip.headlinePrimary}
-                accent={content.proofStrip.headlineAccent}
-                subline={content.proofStrip.subline}
-                align="left"
-                className="mb-0"
-                ctaButton={{ text: content.tryStartButton, onClick: onOpenDemo }}
-              />
+          <div className="max-w-6xl mx-auto w-full">
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-6 pb-2">
+              <div className="max-w-2xl">
+                <SectionHeader
+                  icon={Layers}
+                  tag={content.proofStrip.tag}
+                  primary={content.proofStrip.headlinePrimary}
+                  accent={content.proofStrip.headlineAccent}
+                  subline={content.proofStrip.subline}
+                  align="left"
+                  className="mb-0"
+                  ctaButton={{ text: content.tryStartButton, onClick: onOpenDemo }}
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => scrollTo('section-verticals')}
+                className="proof-explore-link shrink-0 text-xs font-mono text-[#e06b48] hover:text-[#f28e72] transition underline underline-offset-4 flex items-center gap-1.5 cursor-pointer"
+              >
+                <span>Explore deep interactive setups</span>
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={() => scrollTo('section-verticals')}
-              className="shrink-0 text-xs font-mono text-[#e06b48] hover:text-[#f28e72] transition underline underline-offset-4 flex items-center gap-1.5 cursor-pointer"
-            >
-              <span>Explore deep interactive setups</span>
-              <ChevronRight className="w-3.5 h-3.5" />
-            </button>
-          </div>
 
-          <CategoryCardSwiper
-            categories={content.proofStrip.categories}
-            onSelectCategory={(catId) => {
-              setActiveVertical(catId);
-              scrollTo('section-verticals');
-            }}
-          />
-        </div>
-      </section>
+            <CategoryCardSwiper
+              categories={content.proofStrip.categories}
+              onSelectCategory={(catId) => {
+                setActiveVertical(catId);
+                scrollTo('section-verticals');
+              }}
+            />
+          </div>
+        </section>
+      </div>
 
       {/* ------------------------------------------------------------- */}
       {/* SECTION 2 — THE PROBLEM (Before Atrium) */}
