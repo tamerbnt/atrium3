@@ -13,6 +13,8 @@ export interface RobotHeadProps {
   eyeMaterial: THREE.MeshStandardMaterial;
   rivetMaterial: THREE.Material;
   eyeGlowTexture?: THREE.Texture;
+  logoMaterial?: THREE.Material;
+  logoTexture?: THREE.Texture;
   globalPointerRef?: React.MutableRefObject<{ x: number; y: number; active: boolean }>;
 }
 
@@ -40,6 +42,8 @@ export const RobotHead = forwardRef<RobotHeadHandle, RobotHeadProps>(function Ro
     eyeMaterial,
     rivetMaterial,
     eyeGlowTexture,
+    logoMaterial,
+    logoTexture,
     globalPointerRef,
   },
   ref
@@ -117,6 +121,27 @@ export const RobotHead = forwardRef<RobotHeadHandle, RobotHeadProps>(function Ro
     };
   }, [eyeMaterial, eyeGlowTexture]);
 
+  // Shared or fallback logo material
+  const activeLogoMaterial = useMemo(() => {
+    if (logoMaterial) return logoMaterial;
+    if (!logoTexture) return null;
+    return new THREE.MeshPhysicalMaterial({
+      map: logoTexture,
+      transparent: true,
+      roughness: 0.20,
+      metalness: 0.90,
+      clearcoat: 0.90,
+      clearcoatRoughness: 0.10,
+      emissive: new THREE.Color('#d95332'),
+      emissiveMap: logoTexture,
+      emissiveIntensity: 0.45,
+      polygonOffset: true,
+      polygonOffsetFactor: -1,
+      polygonOffsetUnits: -1,
+      depthWrite: false,
+    });
+  }, [logoMaterial, logoTexture]);
+
   // Clean up cloned and generated materials on unmount
   React.useEffect(() => {
     return () => {
@@ -124,12 +149,17 @@ export const RobotHead = forwardRef<RobotHeadHandle, RobotHeadProps>(function Ro
       localPupilMaterial.dispose();
       socketMaterial.dispose();
       gasketMaterial.dispose();
+      if (!logoMaterial && activeLogoMaterial) {
+        activeLogoMaterial.dispose();
+      }
     };
   }, [
     localEyeMaterial,
     localPupilMaterial,
     socketMaterial,
     gasketMaterial,
+    logoMaterial,
+    activeLogoMaterial,
   ]);
 
   // Structural dimensions matching reference rounded-cube proportions
@@ -394,6 +424,19 @@ export const RobotHead = forwardRef<RobotHeadHandle, RobotHeadProps>(function Ro
           castShadow={false}
           receiveShadow={false}
         />
+
+        {/* ATRIUM BRAND LOGO EMBLEM ON TOP FACE OF CRANIAL CASING CUBE */}
+        {activeLogoMaterial && (
+          <mesh
+            position={[0, headH * 0.5 + 0.0012 * scale, 0]}
+            rotation={[-Math.PI * 0.5, 0, 0]}
+            material={activeLogoMaterial}
+            castShadow={false}
+            receiveShadow={false}
+          >
+            <planeGeometry args={[0.24 * scale, 0.24 * scale]} />
+          </mesh>
+        )}
 
         {/* ARTICULATED HEAD/BASE MAGNETIC GASKET RING at bottom of head */}
         <mesh position={[0, -headH * 0.5 - 0.008 * scale, 0]} material={gasketMaterial}>

@@ -12,6 +12,7 @@ import {
   createBrushedMetalTexture,
   createSmallTerracottaGradientTexture,
   createEyeGlowTexture,
+  createAtriumLogoTexture,
 } from '../utils/textureGenerators';
 
 // Dev-only Perf monitor: completely excluded (tree-shaken) from production bundle
@@ -210,16 +211,18 @@ function SceneContent({
   const lastTimeRef = useRef(performance.now());
 
   // Generate procedural textures once (0 KB network payload)
-  const { envTexture, brushedTex, terracottaDiscTex, eyeGlowTex } = useMemo(() => {
+  const { envTexture, brushedTex, terracottaDiscTex, eyeGlowTex, logoTex } = useMemo(() => {
     const env = createBakedEnvironmentTexture(gl);
     const brushed = createBrushedMetalTexture();
     const discTex = createSmallTerracottaGradientTexture();
     const glowTex = createEyeGlowTexture();
+    const logo = createAtriumLogoTexture();
     return {
       envTexture: env,
       brushedTex: brushed,
       terracottaDiscTex: discTex,
       eyeGlowTex: glowTex,
+      logoTex: logo,
     };
   }, [gl]);
 
@@ -359,6 +362,33 @@ function SceneContent({
       depthWrite: false,
     });
   }, [terracottaDiscTex]);
+
+  // Atrium brand logo material shared across all robot heads
+  const logoMaterial = useMemo(() => {
+    return new THREE.MeshPhysicalMaterial({
+      map: logoTex,
+      transparent: true,
+      roughness: 0.20,
+      metalness: 0.90,
+      clearcoat: 0.90,
+      clearcoatRoughness: 0.10,
+      emissive: new THREE.Color('#d95332'),
+      emissiveMap: logoTex,
+      emissiveIntensity: 0.45,
+      polygonOffset: true,
+      polygonOffsetFactor: -1,
+      polygonOffsetUnits: -1,
+      depthWrite: false,
+    });
+  }, [logoTex]);
+
+  // Cleanup textures and materials on unmount
+  useEffect(() => {
+    return () => {
+      logoTex.dispose();
+      logoMaterial.dispose();
+    };
+  }, [logoTex, logoMaterial]);
 
   // Compute responsive layout offsets using viewport in world units
   // Framed generously on the right side of the hero section on desktop
@@ -539,6 +569,8 @@ function SceneContent({
               eyeMaterial={index === 3 ? distantEyeMaterial : eyeMaterial}
               rivetMaterial={rivetMaterial}
               eyeGlowTexture={eyeGlowTex}
+              logoMaterial={logoMaterial}
+              logoTexture={logoTex}
               globalPointerRef={windowPointerRef}
             />
           ))}

@@ -356,3 +356,132 @@ export function createEyeGlowTexture(): THREE.CanvasTexture {
   return tex;
 }
 
+/**
+ * Generates an ultra-crisp Atrium brand logo texture.
+ * Features the signature 4 solid terracotta corner squares and 1 central hollow courtyard square.
+ * Rendered with subtle ambient occlusion, metallic bevel highlight, and transparent background.
+ * Generated once (0 KB network payload).
+ */
+export function createAtriumLogoTexture(): THREE.CanvasTexture {
+  const size = 512;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+
+  if (!ctx) {
+    return new THREE.CanvasTexture(canvas);
+  }
+
+  // Clear transparent canvas
+  ctx.clearRect(0, 0, size, size);
+
+  // Padding and scaling from 100x100 reference vector to 512x512
+  const padding = 48;
+  const contentSize = size - padding * 2; // 416
+  const s = contentSize / 100; // 4.16
+  const ox = padding;
+  const oy = padding;
+
+  const drawRoundedRectPath = (x: number, y: number, w: number, h: number, r: number) => {
+    ctx.beginPath();
+    if (typeof (ctx as any).roundRect === 'function') {
+      (ctx as any).roundRect(x, y, w, h, r);
+    } else {
+      ctx.moveTo(x + r, y);
+      ctx.lineTo(x + w - r, y);
+      ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+      ctx.lineTo(x + w, y + h - r);
+      ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+      ctx.lineTo(x + r, y + h);
+      ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+      ctx.lineTo(x, y + r);
+      ctx.quadraticCurveTo(x, y, x + r, y);
+      ctx.closePath();
+    }
+  };
+
+  // 1. Soft contact shadow pass (laser-milled inlay depth)
+  ctx.save();
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.75)';
+  ctx.shadowBlur = 14;
+  ctx.shadowOffsetY = 4;
+  ctx.fillStyle = 'rgba(15, 6, 4, 0.9)';
+
+  // 4 Outer Corner Squares (Shadow)
+  drawRoundedRectPath(ox + 12 * s, oy + 12 * s, 26 * s, 26 * s, 2.5 * s);
+  ctx.fill();
+  drawRoundedRectPath(ox + 62 * s, oy + 12 * s, 26 * s, 26 * s, 2.5 * s);
+  ctx.fill();
+  drawRoundedRectPath(ox + 12 * s, oy + 62 * s, 26 * s, 26 * s, 2.5 * s);
+  ctx.fill();
+  drawRoundedRectPath(ox + 62 * s, oy + 62 * s, 26 * s, 26 * s, 2.5 * s);
+  ctx.fill();
+
+  // Center Hollow Square (Shadow)
+  drawRoundedRectPath(ox + 35 * s, oy + 35 * s, 30 * s, 30 * s, 1.8 * s);
+  ctx.lineWidth = 6 * s;
+  ctx.strokeStyle = 'rgba(15, 6, 4, 0.9)';
+  ctx.stroke();
+  ctx.restore();
+
+  // 2. Primary Radiant Terracotta Gradient Fill
+  const grad = ctx.createLinearGradient(ox, oy, ox + contentSize, oy + contentSize);
+  grad.addColorStop(0, '#e5643e'); // Radiant warm terracotta
+  grad.addColorStop(0.35, '#c55334'); // Signature Atrium terracotta
+  grad.addColorStop(0.75, '#ab4428'); // Deep roasted terracotta
+  grad.addColorStop(1, '#8f331b'); // Dark bronze edge
+  ctx.fillStyle = grad;
+
+  // Draw 4 Outer Corner Squares
+  drawRoundedRectPath(ox + 12 * s, oy + 12 * s, 26 * s, 26 * s, 2.5 * s);
+  ctx.fill();
+  drawRoundedRectPath(ox + 62 * s, oy + 12 * s, 26 * s, 26 * s, 2.5 * s);
+  ctx.fill();
+  drawRoundedRectPath(ox + 12 * s, oy + 62 * s, 26 * s, 26 * s, 2.5 * s);
+  ctx.fill();
+  drawRoundedRectPath(ox + 62 * s, oy + 62 * s, 26 * s, 26 * s, 2.5 * s);
+  ctx.fill();
+
+  // Draw Center Hollow Square (Courtyard)
+  drawRoundedRectPath(ox + 35 * s, oy + 35 * s, 30 * s, 30 * s, 1.8 * s);
+  ctx.lineWidth = 6 * s;
+  ctx.strokeStyle = grad;
+  ctx.stroke();
+
+  // 3. Precision Laser-Etched Inner Bevel Edge Highlight (catching overhead studio lighting)
+  ctx.save();
+  ctx.strokeStyle = 'rgba(255, 220, 205, 0.55)';
+  ctx.lineWidth = 2.0;
+
+  // Thin highlight stroke on the 4 corner squares
+  drawRoundedRectPath(ox + 12 * s + 1, oy + 12 * s + 1, 26 * s - 2, 26 * s - 2, 2.0 * s);
+  ctx.stroke();
+  drawRoundedRectPath(ox + 62 * s + 1, oy + 12 * s + 1, 26 * s - 2, 26 * s - 2, 2.0 * s);
+  ctx.stroke();
+  drawRoundedRectPath(ox + 12 * s + 1, oy + 62 * s + 1, 26 * s - 2, 26 * s - 2, 2.0 * s);
+  ctx.stroke();
+  drawRoundedRectPath(ox + 62 * s + 1, oy + 62 * s + 1, 26 * s - 2, 26 * s - 2, 2.0 * s);
+  ctx.stroke();
+
+  // Highlight stroke on the hollow square outer edge
+  drawRoundedRectPath(ox + 32 * s + 0.5, oy + 32 * s + 0.5, 36 * s - 1, 36 * s - 1, 3.0 * s);
+  ctx.lineWidth = 1.2;
+  ctx.strokeStyle = 'rgba(255, 230, 215, 0.4)';
+  ctx.stroke();
+  ctx.restore();
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.generateMipmaps = true;
+  texture.minFilter = THREE.LinearMipmapLinearFilter;
+  texture.magFilter = THREE.LinearFilter;
+  texture.anisotropy = 4;
+  texture.wrapS = THREE.ClampToEdgeWrapping;
+  texture.wrapT = THREE.ClampToEdgeWrapping;
+  texture.needsUpdate = true;
+
+  return texture;
+}
+
+

@@ -30,6 +30,8 @@ export default function StaticFallback({ reason, onSwitchTo3D }: StaticFallbackP
           >
             {/* Robot Head 1 — Center Front Dominant */}
             <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-28 h-32 sm:w-32 sm:h-36 rounded-2xl bg-gradient-to-br from-stone-700 via-stone-800 to-stone-950 border border-stone-600/80 shadow-[0_25px_50px_rgba(0,0,0,0.8),inset_0_1px_2px_rgba(255,255,255,0.4)] flex flex-col justify-between p-3.5 z-20 backdrop-blur-sm">
+              {/* Top face Atrium logo mark */}
+              <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-6 h-1.5 rounded-full bg-[#b85438]/80 shadow-[0_0_6px_#b85438]" />
               {/* Ear pods */}
               <div className="absolute -left-2 top-8 w-2 h-6 rounded-l-md bg-stone-700 border-l border-stone-500" />
               <div className="absolute -right-2 top-8 w-2 h-6 rounded-r-md bg-stone-700 border-r border-stone-500" />
