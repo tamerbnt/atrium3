@@ -76,6 +76,9 @@ export default function PageShell({
   const isSnappingRef = useRef(false);
   const snapTimerRef = useRef<NodeJS.Timeout | null>(null);
   const proofHorizonTlRef = useRef<gsap.core.Timeline | null>(null);
+  const sectionTimelinesRef = useRef<
+    Map<string, { headerTl?: gsap.core.Timeline; cardsTl?: gsap.core.Timeline }>
+  >(new Map());
 
   const { lenis, scrollTo: lenisScrollTo } = useLenis(
     useCallback((lenisInstance: any) => {
@@ -118,9 +121,10 @@ export default function PageShell({
       // Smooth trigger glide strictly between Hero and Section 1.5
       const windowH = window.innerHeight;
       if (!isSnappingRef.current && lenisInstance) {
-        // Downward glide from hero when user scrolls down
-        if (scrollY < windowH * 0.75 && lenisInstance.direction === 1) {
+        // Downward glide from hero when user scrolls down (origin gate catches gentle scrolls and high-velocity flicks alike)
+        if (prevScrollY < 120 && (delta > 0 || lenisInstance.direction === 1)) {
           isSnappingRef.current = true;
+          lenisInstance.velocity = 0;
           if (snapTimerRef.current) clearTimeout(snapTimerRef.current);
           lenisInstance.scrollTo('#section-proof-strip', {
             duration: 0.85,
@@ -128,17 +132,22 @@ export default function PageShell({
             force: true,
             easing: (t: number) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
             onComplete: () => {
-              isSnappingRef.current = false;
               proofHorizonTlRef.current?.restart();
+              setTimeout(() => {
+                isSnappingRef.current = false;
+                if (lenisInstance) lenisInstance.velocity = 0;
+              }, 140);
             },
           });
           snapTimerRef.current = setTimeout(() => {
             isSnappingRef.current = false;
-          }, 900);
+            if (lenisInstance) lenisInstance.velocity = 0;
+          }, 1050);
         }
         // Upward glide from top of Section 1.5 when user scrolls back to hero
-        else if (scrollY > 40 && scrollY <= windowH + 40 && lenisInstance.direction === -1) {
+        else if (prevScrollY >= 40 && prevScrollY <= windowH + 40 && (delta < 0 || lenisInstance.direction === -1)) {
           isSnappingRef.current = true;
+          lenisInstance.velocity = 0;
           proofHorizonTlRef.current?.reverse();
           if (snapTimerRef.current) clearTimeout(snapTimerRef.current);
           lenisInstance.scrollTo(0, {
@@ -147,12 +156,16 @@ export default function PageShell({
             force: true,
             easing: (t: number) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
             onComplete: () => {
-              isSnappingRef.current = false;
+              setTimeout(() => {
+                isSnappingRef.current = false;
+                if (lenisInstance) lenisInstance.velocity = 0;
+              }, 140);
             },
           });
           snapTimerRef.current = setTimeout(() => {
             isSnappingRef.current = false;
-          }, 900);
+            if (lenisInstance) lenisInstance.velocity = 0;
+          }, 1050);
         }
       }
     }, [])
@@ -161,10 +174,18 @@ export default function PageShell({
   const scrollTo = (id: string) => {
     isTransitioningRef.current = true;
     if (transitionTimerRef.current) clearTimeout(transitionTimerRef.current);
-    if (id === 'section-proof-strip') {
+    const targetId = id.startsWith('#') ? id.slice(1) : id;
+    if (targetId === 'section-proof-strip') {
       proofHorizonTlRef.current?.restart();
     }
-    lenisScrollTo(`#${id}`, { offset: id === 'section-proof-strip' ? 0 : -40, duration: 1.0 });
+    const tls = sectionTimelinesRef.current.get(targetId);
+    if (tls) {
+      setTimeout(() => {
+        tls.headerTl?.restart();
+        tls.cardsTl?.restart();
+      }, 300);
+    }
+    lenisScrollTo(`#${targetId}`, { offset: targetId === 'section-proof-strip' ? 0 : -40, duration: 1.0 });
     transitionTimerRef.current = setTimeout(() => {
       isTransitioningRef.current = false;
     }, 1100);
@@ -211,6 +232,26 @@ export default function PageShell({
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [lenisScrollTo]);
+
+  // Absorb excess kinetic trackpad/wheel momentum during Hero <-> Section 1.5 transitions
+  useEffect(() => {
+    const absorbExcessMomentum = (e: any) => {
+      if (isSnappingRef.current) {
+        e.lenisStopPropagation = true;
+        if (e.cancelable) {
+          e.preventDefault();
+        }
+      }
+    };
+
+    window.addEventListener('wheel', absorbExcessMomentum, { capture: true, passive: false });
+    window.addEventListener('touchmove', absorbExcessMomentum, { capture: true, passive: false });
+
+    return () => {
+      window.removeEventListener('wheel', absorbExcessMomentum, { capture: true });
+      window.removeEventListener('touchmove', absorbExcessMomentum, { capture: true });
+    };
+  }, []);
 
   /**
    * Scroll Effects:
@@ -287,19 +328,25 @@ export default function PageShell({
       }
 
       // Reusable setup for Effect 1 (Arrival from below, covering previous) + Effect 2 (Masked text reveal)
-      // Register scroll animations cleanly
+      // Master Horizon Orchestrator — Typographic Horizon Rise + Sequential Card Cascade
       const setupSectionTransition = ({
         target,
         cardsSelector,
+        headerTriggerOffset = 'top 85%',
+        cardsTriggerOffset = 'top 82%',
       }: {
         target: HTMLElement | null;
         cardsSelector?: string;
+        headerTriggerOffset?: string;
+        cardsTriggerOffset?: string;
       }) => {
         if (!target) return;
 
-        const header = target.querySelector('.section-headline');
-        const subline = target.querySelector('.section-subline');
-        const tag = target.querySelector('.section-tag');
+        const sectionId = target.id;
+        const header = target.querySelector('.section-headline') as HTMLElement | null;
+        const subline = target.querySelector('.section-subline') as HTMLElement | null;
+        const tag = target.querySelector('.section-tag') as HTMLElement | null;
+        const ctaWrap = target.querySelector('.section-cta-wrap') as HTMLElement | null;
         const cards = cardsSelector ? target.querySelectorAll(cardsSelector) : null;
         const innerContent =
           (target.querySelector(
@@ -310,104 +357,129 @@ export default function PageShell({
           if (header) gsap.set(header, { opacity: 1, y: 0, clipPath: 'none' });
           if (subline) gsap.set(subline, { opacity: 1, y: 0, clipPath: 'none' });
           if (tag) gsap.set(tag, { opacity: 1, y: 0 });
+          if (ctaWrap) gsap.set(ctaWrap, { opacity: 1, y: 0 });
           if (cards && cards.length) gsap.set(cards, { opacity: 1, y: 0 });
           if (innerContent) gsap.set(innerContent, { opacity: 1, y: 0 });
           gsap.set(target, { opacity: 1, y: 0 });
           return;
         }
 
-        // Section Header Entrance Animation (single masked clip-path sweep & upward settle)
-        const headerTl = gsap.timeline({ paused: true });
+        // 1. Header Horizon Rise Timeline — triggers right when the header element enters the viewport
+        const headerTriggerEl =
+          (header ? header.parentElement : null) || header || tag || innerContent || target;
+        const headerTl = gsap.timeline({
+          scrollTrigger: {
+            trigger: headerTriggerEl,
+            start: headerTriggerOffset,
+            toggleActions: 'play reverse play reverse',
+          },
+        });
 
-        if (innerContent) {
+        // Category pill / tag arrives first
+        if (tag) {
           headerTl.fromTo(
-            innerContent,
-            { y: 16, opacity: 0.9 },
-            { y: 0, opacity: 1, duration: 0.5, ease: 'power2.out' },
+            tag,
+            { opacity: 0, y: 16 },
+            { opacity: 1, y: 0, duration: 0.45, ease: 'power2.out' },
             0
           );
         }
 
-        if (tag) {
-          headerTl.fromTo(
-            tag,
-            { opacity: 0, y: 8 },
-            { opacity: 1, y: 0, duration: 0.35, ease: 'power2.out' },
-            0.04
-          );
-        }
-
+        // Two-tone headline rises through horizontal mask
         if (header) {
           headerTl.fromTo(
             header,
             {
               clipPath: 'inset(0 0 100% 0)',
-              y: 16,
+              y: 32,
               opacity: 0,
             },
             {
               clipPath: 'inset(0 0 0% 0)',
               y: 0,
               opacity: 1,
-              duration: 0.65,
+              duration: 0.85,
               ease: 'power3.out',
             },
-            0.08
+            0.12
           );
         }
 
+        // Subheadline rises through horizontal mask
         if (subline) {
           headerTl.fromTo(
             subline,
             {
               clipPath: 'inset(0 0 100% 0)',
-              y: 12,
+              y: 22,
               opacity: 0,
             },
             {
               clipPath: 'inset(0 0 0% 0)',
               y: 0,
               opacity: 1,
-              duration: 0.55,
+              duration: 0.75,
               ease: 'power3.out',
             },
-            0.2
+            0.28
           );
         }
 
-        ScrollTrigger.create({
-          trigger: target,
-          start: 'top 85%',
-          onEnter: () => headerTl.play(),
-          onLeaveBack: () => headerTl.reverse(),
-        });
+        // CTA button wrap glides in
+        if (ctaWrap) {
+          headerTl.fromTo(
+            ctaWrap,
+            { opacity: 0, y: 16 },
+            { opacity: 1, y: 0, duration: 0.5, ease: 'power2.out' },
+            0.42
+          );
+        }
 
-        // Dedicated Cards & Content Blocks Stagger
-        if (cards && cards.length) {
+        // Fallback for sections without header class but with inner content (like Section 4 Feeling Line)
+        if (!header && !tag && innerContent) {
+          headerTl.fromTo(
+            innerContent,
+            { opacity: 0, y: 30 },
+            { opacity: 1, y: 0, duration: 0.75, ease: 'power2.out' },
+            0.1
+          );
+        }
+
+        // 2. Cards Sequential Cascade Timeline — triggers when the cards container enters the viewport
+        let cardsTl: gsap.core.Timeline | undefined;
+        if (cards && cards.length > 0) {
           const firstCard = cards[0] as HTMLElement;
-          const cardsContainer = (firstCard.parentElement as HTMLElement) || target;
-          const cardCount = cards.length;
-          const containerHeight = cardsContainer.offsetHeight || 300;
+          const cardsContainer =
+            (firstCard.closest(
+              '.grid, .flex, [role="region"], .max-w-6xl, .max-w-5xl, .max-w-4xl, .max-w-3xl, .space-y-3, .space-y-4'
+            ) as HTMLElement) ||
+            firstCard.parentElement ||
+            target;
 
-          const dynamicStagger = Math.max(0.04, Math.min(0.12, 0.42 / cardCount));
-          const dynamicDuration = Math.max(0.45, Math.min(0.7, 0.45 + (containerHeight / 2000) * 0.2));
+          cardsTl = gsap.timeline({
+            scrollTrigger: {
+              trigger: cardsContainer,
+              start: cardsTriggerOffset,
+              toggleActions: 'play reverse play reverse',
+            },
+          });
 
-          gsap.fromTo(
+          cardsTl.fromTo(
             cards,
-            { opacity: 0, y: 22 },
+            { opacity: 0, y: 35 },
             {
               opacity: 1,
               y: 0,
-              duration: dynamicDuration,
-              stagger: dynamicStagger,
+              duration: 0.65,
+              stagger: 0.08,
               ease: 'power2.out',
-              scrollTrigger: {
-                trigger: cardsContainer,
-                start: 'top 88%',
-                toggleActions: 'play none none none',
-              },
-            }
+            },
+            0
           );
+        }
+
+        if (sectionId) {
+          sectionTimelinesRef.current.set(sectionId, { headerTl, cardsTl });
         }
       };
 
@@ -524,22 +596,26 @@ export default function PageShell({
             0.52
           );
         }
+
+        sectionTimelinesRef.current.set('section-proof-strip', { headerTl: horizonTl });
       }
 
       // 2. Problem
       setupSectionTransition({
         target: sectionProblemRef.current,
+        cardsSelector: '.problem-card-anim',
       });
 
       // 3. Shift
       setupSectionTransition({
         target: sectionShiftRef.current,
-        cardsSelector: '.shift-callout',
+        cardsSelector: '.shift-card-anim, .shift-callout',
       });
 
       // 4. Feeling Line
       setupSectionTransition({
         target: sectionFeelingRef.current,
+        headerTriggerOffset: 'top 80%',
       });
 
       // 5. How It Works
@@ -575,6 +651,7 @@ export default function PageShell({
       // 10. Credibility
       setupSectionTransition({
         target: sectionProofRef.current,
+        cardsSelector: '.credibility-card',
       });
 
       // 11. FAQ
@@ -586,6 +663,7 @@ export default function PageShell({
       // 12. Final CTA
       setupSectionTransition({
         target: sectionFinalCtaRef.current,
+        headerTriggerOffset: 'top 80%',
       });
     });
 
@@ -1574,7 +1652,7 @@ export default function PageShell({
             ctaButton={{ text: content.tryStartButton, onClick: onOpenDemo }}
           />
 
-          <div className="p-8 sm:p-12 rounded-2xl bg-stone-950/90 backdrop-blur-md border border-stone-800 text-stone-200 text-left font-sans text-sm sm:text-base leading-relaxed shadow-2xl max-w-3xl mx-auto mb-8 space-y-4">
+          <div className="credibility-card p-8 sm:p-12 rounded-2xl bg-stone-950/90 backdrop-blur-md border border-stone-800 text-stone-200 text-left font-sans text-sm sm:text-base leading-relaxed shadow-2xl max-w-3xl mx-auto mb-8 space-y-4">
             <p className="text-stone-200 font-normal">
               {content.credibility.leadSentence}
             </p>

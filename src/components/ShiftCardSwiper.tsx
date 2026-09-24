@@ -311,7 +311,8 @@ export function ShiftCardSwiper({
                   width: `${cardWidth}px`,
                 }}
               >
-                <SpotlightCard
+                <div className="shift-card-anim h-full w-full">
+                  <SpotlightCard
                   spotlightColor="rgba(224, 107, 72, 0.35)"
                   borderColor={
                     isCenterFocused
@@ -359,6 +360,7 @@ export function ShiftCardSwiper({
                     </span>
                   </div>
                 </SpotlightCard>
+                </div>
               </div>
             );
           })}

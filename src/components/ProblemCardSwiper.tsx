@@ -311,7 +311,8 @@ export function ProblemCardSwiper({
                   width: `${cardWidth}px`,
                 }}
               >
-                <SpotlightCard
+                <div className="problem-card-anim h-full w-full">
+                  <SpotlightCard
                   spotlightColor="rgba(200, 90, 58, 0.3)"
                   borderColor={
                     isCenterFocused
@@ -356,6 +357,7 @@ export function ProblemCardSwiper({
                     </span>
                   </div>
                 </SpotlightCard>
+                </div>
               </div>
             );
           })}
