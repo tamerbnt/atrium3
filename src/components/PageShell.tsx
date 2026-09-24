@@ -132,7 +132,7 @@ export default function PageShell({
             force: true,
             easing: (t: number) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
             onComplete: () => {
-              proofHorizonTlRef.current?.restart();
+              proofHorizonTlRef.current?.play();
               setTimeout(() => {
                 isSnappingRef.current = false;
                 if (lenisInstance) lenisInstance.velocity = 0;
@@ -176,13 +176,13 @@ export default function PageShell({
     if (transitionTimerRef.current) clearTimeout(transitionTimerRef.current);
     const targetId = id.startsWith('#') ? id.slice(1) : id;
     if (targetId === 'section-proof-strip') {
-      proofHorizonTlRef.current?.restart();
+      proofHorizonTlRef.current?.play();
     }
     const tls = sectionTimelinesRef.current.get(targetId);
     if (tls) {
       setTimeout(() => {
-        tls.headerTl?.restart();
-        tls.cardsTl?.restart();
+        tls.headerTl?.play();
+        tls.cardsTl?.play();
       }, 300);
     }
     lenisScrollTo(`#${targetId}`, { offset: targetId === 'section-proof-strip' ? 0 : -40, duration: 1.0 });
@@ -332,8 +332,8 @@ export default function PageShell({
       const setupSectionTransition = ({
         target,
         cardsSelector,
-        headerTriggerOffset = 'top 85%',
-        cardsTriggerOffset = 'top 82%',
+        headerTriggerOffset = 'top 88%',
+        cardsTriggerOffset = 'top 85%',
       }: {
         target: HTMLElement | null;
         cardsSelector?: string;
@@ -364,14 +364,13 @@ export default function PageShell({
           return;
         }
 
-        // 1. Header Horizon Rise Timeline — triggers right when the header element enters the viewport
-        const headerTriggerEl =
-          (header ? header.parentElement : null) || header || tag || innerContent || target;
+        // 1. Header Horizon Rise Timeline — triggers when the section enters viewport
+        const headerTriggerEl = target;
         const headerTl = gsap.timeline({
           scrollTrigger: {
             trigger: headerTriggerEl,
             start: headerTriggerOffset,
-            toggleActions: 'play reverse play reverse',
+            toggleActions: 'play none none reverse',
           },
         });
 
@@ -390,18 +389,16 @@ export default function PageShell({
           headerTl.fromTo(
             header,
             {
-              clipPath: 'inset(0 0 100% 0)',
-              y: 32,
+              y: 42,
               opacity: 0,
             },
             {
-              clipPath: 'inset(0 0 0% 0)',
               y: 0,
               opacity: 1,
-              duration: 0.85,
+              duration: 0.8,
               ease: 'power3.out',
             },
-            0.12
+            0.08
           );
         }
 
@@ -410,18 +407,16 @@ export default function PageShell({
           headerTl.fromTo(
             subline,
             {
-              clipPath: 'inset(0 0 100% 0)',
-              y: 22,
+              y: 30,
               opacity: 0,
             },
             {
-              clipPath: 'inset(0 0 0% 0)',
               y: 0,
               opacity: 1,
-              duration: 0.75,
+              duration: 0.7,
               ease: 'power3.out',
             },
-            0.28
+            0.2
           );
         }
 
@@ -431,7 +426,7 @@ export default function PageShell({
             ctaWrap,
             { opacity: 0, y: 16 },
             { opacity: 1, y: 0, duration: 0.5, ease: 'power2.out' },
-            0.42
+            0.35
           );
         }
 
@@ -445,22 +440,14 @@ export default function PageShell({
           );
         }
 
-        // 2. Cards Sequential Cascade Timeline — triggers when the cards container enters the viewport
+        // 2. Cards Sequential Cascade Timeline — triggers when the section enters view
         let cardsTl: gsap.core.Timeline | undefined;
         if (cards && cards.length > 0) {
-          const firstCard = cards[0] as HTMLElement;
-          const cardsContainer =
-            (firstCard.closest(
-              '.grid, .flex, [role="region"], .max-w-6xl, .max-w-5xl, .max-w-4xl, .max-w-3xl, .space-y-3, .space-y-4'
-            ) as HTMLElement) ||
-            firstCard.parentElement ||
-            target;
-
           cardsTl = gsap.timeline({
             scrollTrigger: {
-              trigger: cardsContainer,
+              trigger: target,
               start: cardsTriggerOffset,
-              toggleActions: 'play reverse play reverse',
+              toggleActions: 'play none none reverse',
             },
           });
 
@@ -474,7 +461,7 @@ export default function PageShell({
               stagger: 0.08,
               ease: 'power2.out',
             },
-            0
+            0.15
           );
         }
 
@@ -484,7 +471,7 @@ export default function PageShell({
       };
 
       // Set up each section in sequence:
-      // 1. Proof Strip / Categories — Typographic Horizon Rise + One-By-One Staggered Reveal
+      // 1. Proof Strip / Categories — Typographic Horizon Rise + Sequential Card Cascade
       const proofTarget = sectionProofStripRef.current;
       if (proofTarget) {
         const tag = proofTarget.querySelector('.section-tag');
@@ -495,109 +482,115 @@ export default function PageShell({
         const cardAnims = proofTarget.querySelectorAll('.proof-card-anim');
         const swiper = proofTarget.querySelector('.swiper-container');
 
-        // Master horizon reveal timeline directly powered by ScrollTrigger
-        const horizonTl = gsap.timeline({
-          scrollTrigger: {
-            trigger: proofTarget,
-            start: 'top 70%',
-            toggleActions: 'play reverse play reverse',
-          },
-        });
-        proofHorizonTlRef.current = horizonTl;
-
-        // 1. Domain pill arrives first
-        if (tag) {
-          horizonTl.fromTo(
-            tag,
-            { opacity: 0, y: 16 },
-            { opacity: 1, y: 0, duration: 0.45, ease: 'power2.out' },
-            0
-          );
-        }
-
-        // 2. Headline rises through horizontal mask
-        if (headline) {
-          horizonTl.fromTo(
-            headline,
-            {
-              clipPath: 'inset(0 0 100% 0)',
-              y: 32,
-              opacity: 0,
+        if (prefersReducedMotion) {
+          if (headline) gsap.set(headline, { opacity: 1, y: 0 });
+          if (subline) gsap.set(subline, { opacity: 1, y: 0 });
+          if (tag) gsap.set(tag, { opacity: 1, y: 0 });
+          if (ctaWrap) gsap.set(ctaWrap, { opacity: 1, y: 0 });
+          if (exploreLink) gsap.set(exploreLink, { opacity: 1, x: 0 });
+          if (cardAnims && cardAnims.length) gsap.set(cardAnims, { opacity: 1, y: 0 });
+          if (swiper) gsap.set(swiper, { opacity: 1, y: 0 });
+        } else {
+          // Master horizon reveal timeline directly powered by ScrollTrigger
+          const horizonTl = gsap.timeline({
+            scrollTrigger: {
+              trigger: proofTarget,
+              start: 'top 90%',
+              toggleActions: 'play none none reverse',
             },
-            {
-              clipPath: 'inset(0 0 0% 0)',
-              y: 0,
-              opacity: 1,
-              duration: 0.85,
-              ease: 'power3.out',
-            },
-            0.12
-          );
-        }
+          });
+          proofHorizonTlRef.current = horizonTl;
 
-        // 3. Subheadline rises through horizontal mask
-        if (subline) {
-          horizonTl.fromTo(
-            subline,
-            {
-              clipPath: 'inset(0 0 100% 0)',
-              y: 22,
-              opacity: 0,
-            },
-            {
-              clipPath: 'inset(0 0 0% 0)',
-              y: 0,
-              opacity: 1,
-              duration: 0.75,
-              ease: 'power3.out',
-            },
-            0.28
-          );
-        }
+          // 1. Domain pill arrives first from behind its mask
+          if (tag) {
+            horizonTl.fromTo(
+              tag,
+              { opacity: 0, y: 16 },
+              { opacity: 1, y: 0, duration: 0.45, ease: 'power2.out' },
+              0
+            );
+          }
 
-        // 4. CTA button and Explore link glide in
-        if (ctaWrap) {
-          horizonTl.fromTo(
-            ctaWrap,
-            { opacity: 0, y: 16 },
-            { opacity: 1, y: 0, duration: 0.5, ease: 'power2.out' },
-            0.42
-          );
-        }
+          // 2. Headline rises from behind the architectural horizon mask
+          if (headline) {
+            horizonTl.fromTo(
+              headline,
+              {
+                y: 45,
+                opacity: 0,
+              },
+              {
+                y: 0,
+                opacity: 1,
+                duration: 0.8,
+                ease: 'power3.out',
+              },
+              0.08
+            );
+          }
 
-        if (exploreLink) {
-          horizonTl.fromTo(
-            exploreLink,
-            { opacity: 0, x: 20 },
-            { opacity: 1, x: 0, duration: 0.55, ease: 'power2.out' },
-            0.46
-          );
-        }
+          // 3. Subheadline rises smoothly from behind its horizon mask
+          if (subline) {
+            horizonTl.fromTo(
+              subline,
+              {
+                y: 30,
+                opacity: 0,
+              },
+              {
+                y: 0,
+                opacity: 1,
+                duration: 0.7,
+                ease: 'power3.out',
+              },
+              0.2
+            );
+          }
 
-        // 5. Category cards cascade in sequentially one by one
-        if (cardAnims && cardAnims.length > 0) {
-          horizonTl.fromTo(
-            cardAnims,
-            { opacity: 0, y: 35 },
-            {
-              opacity: 1,
-              y: 0,
-              duration: 0.65,
-              stagger: 0.08,
-              ease: 'power2.out',
-            },
-            0.52
-          );
-        } else if (swiper) {
-          horizonTl.fromTo(
-            swiper,
-            { opacity: 0, y: 35 },
-            { opacity: 1, y: 0, duration: 0.75, ease: 'power2.out' },
-            0.52
-          );
-        }
+          // 4. CTA button and Explore link glide in
+          if (ctaWrap) {
+            horizonTl.fromTo(
+              ctaWrap,
+              { opacity: 0, y: 16 },
+              { opacity: 1, y: 0, duration: 0.5, ease: 'power2.out' },
+              0.3
+            );
+          }
 
-        sectionTimelinesRef.current.set('section-proof-strip', { headerTl: horizonTl });
+          if (exploreLink) {
+            horizonTl.fromTo(
+              exploreLink,
+              { opacity: 0, x: 16 },
+              { opacity: 1, x: 0, duration: 0.55, ease: 'power2.out' },
+              0.32
+            );
+          }
+
+          // 5. Category cards cascade in sequentially one by one
+          if (cardAnims && cardAnims.length > 0) {
+            horizonTl.fromTo(
+              cardAnims,
+              { opacity: 0, y: 35 },
+              {
+                opacity: 1,
+                y: 0,
+                duration: 0.65,
+                stagger: 0.08,
+                ease: 'power2.out',
+              },
+              0.32
+            );
+          } else if (swiper) {
+            horizonTl.fromTo(
+              swiper,
+              { opacity: 0, y: 35 },
+              { opacity: 1, y: 0, duration: 0.75, ease: 'power2.out' },
+              0.32
+            );
+          }
+
+          sectionTimelinesRef.current.set('section-proof-strip', { headerTl: horizonTl });
+        }
       }
 
       // 2. Problem
@@ -665,6 +658,18 @@ export default function PageShell({
         target: sectionFinalCtaRef.current,
         headerTriggerOffset: 'top 80%',
       });
+
+      // Synchronize trigger coordinates with document height and layout
+      ScrollTrigger.refresh();
+
+      // Subsequent deferred refresh once fonts, swipers, and dynamic images settle
+      const delayedRefreshTimer = setTimeout(() => {
+        ScrollTrigger.refresh();
+      }, 250);
+
+      return () => {
+        clearTimeout(delayedRefreshTimer);
+      };
     });
 
     return () => ctx.revert();
