@@ -41,7 +41,7 @@ export function BeforeAfterSlider({ lang }: BeforeAfterSliderProps) {
   const isArabic = lang === 'ar';
 
   return (
-    <div className="w-full my-12">
+    <div className="before-after-slider w-full my-12">
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 mb-4">
         <div>
           <span className="text-[10px] font-mono text-[#e06b48] uppercase tracking-widest font-semibold block mb-1">

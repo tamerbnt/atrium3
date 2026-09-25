@@ -28,6 +28,7 @@ export function PinnedHowItWorks({ content, lang, onOpenDemo }: PinnedHowItWorks
         accent={content.howItWorks.headlineAccent}
         subline={content.howItWorks.subline}
         className="how-header"
+        maskedHorizon={true}
         ctaButton={{ text: content.tryStartButton, onClick: onOpenDemo }}
       />
 

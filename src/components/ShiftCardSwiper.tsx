@@ -295,6 +295,10 @@ export function ShiftCardSwiper({
           {extendedPoints.map((point, virtualIdx) => {
             const originalIdx = virtualIdx % count;
             const isCenterFocused = virtualIdx === virtualIndex;
+            const isCoreSet =
+              isSingleItem ||
+              (virtualIdx >= count * baseOffsetMultiplier &&
+                virtualIdx < count * (baseOffsetMultiplier + 1));
 
             return (
               <div
@@ -311,7 +315,7 @@ export function ShiftCardSwiper({
                   width: `${cardWidth}px`,
                 }}
               >
-                <div className="shift-card-anim h-full w-full">
+                <div className="h-full w-full">
                   <SpotlightCard
                   spotlightColor="rgba(224, 107, 72, 0.35)"
                   borderColor={

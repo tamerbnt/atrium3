@@ -316,7 +316,7 @@ export function CategoryCardSwiper({
             const originalIdx = virtualIdx % count;
             const isCenterFocused = virtualIdx === virtualIndex;
             // The middle set is the canonical visible set containing the centered card
-            const isCoreSet = virtualIdx >= count && virtualIdx < count * 2;
+            const isCoreSet = isSingleItem ? true : virtualIdx >= count && virtualIdx < count * 2;
 
             return (
               <div
@@ -337,7 +337,7 @@ export function CategoryCardSwiper({
                   width: `${cardWidth}px`,
                 }}
               >
-                <div className={`h-full w-full ${isCoreSet ? 'proof-card-anim' : ''}`}>
+                <div className="proof-card-inner h-full w-full">
                   <SpotlightCard
                   spotlightColor="rgba(224, 107, 72, 0.3)"
                   borderColor={

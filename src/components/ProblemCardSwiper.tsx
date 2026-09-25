@@ -295,6 +295,10 @@ export function ProblemCardSwiper({
           {extendedPoints.map((point, virtualIdx) => {
             const originalIdx = virtualIdx % count;
             const isCenterFocused = virtualIdx === virtualIndex;
+            const isCoreSet =
+              isSingleItem ||
+              (virtualIdx >= count * baseOffsetMultiplier &&
+                virtualIdx < count * (baseOffsetMultiplier + 1));
 
             return (
               <div
@@ -311,7 +315,7 @@ export function ProblemCardSwiper({
                   width: `${cardWidth}px`,
                 }}
               >
-                <div className="problem-card-anim h-full w-full">
+                <div className="h-full w-full">
                   <SpotlightCard
                   spotlightColor="rgba(200, 90, 58, 0.3)"
                   borderColor={

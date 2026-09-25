@@ -75,10 +75,6 @@ export default function PageShell({
 
   const isSnappingRef = useRef(false);
   const snapTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const proofHorizonTlRef = useRef<gsap.core.Timeline | null>(null);
-  const sectionTimelinesRef = useRef<
-    Map<string, { headerTl?: gsap.core.Timeline; cardsTl?: gsap.core.Timeline }>
-  >(new Map());
 
   const { lenis, scrollTo: lenisScrollTo } = useLenis(
     useCallback((lenisInstance: any) => {
@@ -132,7 +128,6 @@ export default function PageShell({
             force: true,
             easing: (t: number) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
             onComplete: () => {
-              proofHorizonTlRef.current?.play();
               setTimeout(() => {
                 isSnappingRef.current = false;
                 if (lenisInstance) lenisInstance.velocity = 0;
@@ -148,7 +143,6 @@ export default function PageShell({
         else if (prevScrollY >= 40 && prevScrollY <= windowH + 40 && (delta < 0 || lenisInstance.direction === -1)) {
           isSnappingRef.current = true;
           lenisInstance.velocity = 0;
-          proofHorizonTlRef.current?.reverse();
           if (snapTimerRef.current) clearTimeout(snapTimerRef.current);
           lenisInstance.scrollTo(0, {
             duration: 0.85,
@@ -175,16 +169,6 @@ export default function PageShell({
     isTransitioningRef.current = true;
     if (transitionTimerRef.current) clearTimeout(transitionTimerRef.current);
     const targetId = id.startsWith('#') ? id.slice(1) : id;
-    if (targetId === 'section-proof-strip') {
-      proofHorizonTlRef.current?.play();
-    }
-    const tls = sectionTimelinesRef.current.get(targetId);
-    if (tls) {
-      setTimeout(() => {
-        tls.headerTl?.play();
-        tls.cardsTl?.play();
-      }, 300);
-    }
     lenisScrollTo(`#${targetId}`, { offset: targetId === 'section-proof-strip' ? 0 : -40, duration: 1.0 });
     transitionTimerRef.current = setTimeout(() => {
       isTransitioningRef.current = false;
@@ -218,7 +202,10 @@ export default function PageShell({
 
       if ((e.key === 'ArrowDown' || e.key === 'PageDown') && scrollY < 80) {
         e.preventDefault();
-        lenisScrollTo('#section-proof-strip', { duration: 1.15, offset: 0 });
+        lenisScrollTo('#section-proof-strip', {
+          duration: 1.15,
+          offset: 0,
+        });
       } else if (
         (e.key === 'ArrowUp' || e.key === 'PageUp') &&
         scrollY >= windowH - 60 &&
@@ -327,348 +314,143 @@ export default function PageShell({
         });
       }
 
-      // Reusable setup for Effect 1 (Arrival from below, covering previous) + Effect 2 (Masked text reveal)
-      // Master Horizon Orchestrator — Typographic Horizon Rise + Sequential Card Cascade
-      const setupSectionTransition = ({
-        target,
-        cardsSelector,
-        headerTriggerOffset = 'top 88%',
-        cardsTriggerOffset = 'top 85%',
-      }: {
-        target: HTMLElement | null;
-        cardsSelector?: string;
-        headerTriggerOffset?: string;
-        cardsTriggerOffset?: string;
-      }) => {
-        if (!target) return;
-
-        const sectionId = target.id;
-        const header = target.querySelector('.section-headline') as HTMLElement | null;
-        const subline = target.querySelector('.section-subline') as HTMLElement | null;
-        const tag = target.querySelector('.section-tag') as HTMLElement | null;
-        const ctaWrap = target.querySelector('.section-cta-wrap') as HTMLElement | null;
-        const cards = cardsSelector ? target.querySelectorAll(cardsSelector) : null;
-        const innerContent =
-          (target.querySelector(
-            '.max-w-7xl, .max-w-6xl, .max-w-5xl, .max-w-4xl, .max-w-3xl, .max-w-2xl'
-          ) as HTMLElement | null) || (target.firstElementChild as HTMLElement | null);
+      // =========================================================================
+      // SETUP / HOW IT WORKS SECTION — Horizon Rise & Sequential Card Cascade
+      // Strictly isolated to #section-how-it-works.
+      // Timing:
+      // - Trigger: 'top 75%' (fires when section header enters comfortable eye level)
+      // - Category tag arrives at 0.00s (power2.out, 0.38s)
+      // - Two-tone headline rises from behind horizon mask at 0.08s (power3.out, 0.65s)
+      // - Subheadline rises from behind horizon mask at 0.18s (power2.out, 0.55s)
+      // - CTA button arrives at 0.26s (power2.out, 0.45s)
+      // - Sequential Card Cascade: Step 1, Step 2, Step 3 stagger in with micro-elevation at 0.32s (stagger 0.10s)
+      // - Clean onComplete clears all inline GSAP transforms & opacity so hover states remain native CSS
+      // =========================================================================
+      const howTarget = sectionHowRef.current;
+      if (howTarget) {
+        const tag = howTarget.querySelector('.section-tag');
+        const headline = howTarget.querySelector('.section-headline');
+        const subline = howTarget.querySelector('.section-subline');
+        const ctaWrap = howTarget.querySelector('.section-cta-wrap');
+        const stepCards = howTarget.querySelectorAll('.how-step-card');
 
         if (prefersReducedMotion) {
-          if (header) gsap.set(header, { opacity: 1, y: 0, clipPath: 'none' });
-          if (subline) gsap.set(subline, { opacity: 1, y: 0, clipPath: 'none' });
-          if (tag) gsap.set(tag, { opacity: 1, y: 0 });
-          if (ctaWrap) gsap.set(ctaWrap, { opacity: 1, y: 0 });
-          if (cards && cards.length) gsap.set(cards, { opacity: 1, y: 0 });
-          if (innerContent) gsap.set(innerContent, { opacity: 1, y: 0 });
-          gsap.set(target, { opacity: 1, y: 0 });
-          return;
-        }
-
-        // 1. Header Horizon Rise Timeline — triggers when the section enters viewport
-        const headerTriggerEl = target;
-        const headerTl = gsap.timeline({
-          scrollTrigger: {
-            trigger: headerTriggerEl,
-            start: headerTriggerOffset,
-            toggleActions: 'play none none reverse',
-          },
-        });
-
-        // Category pill / tag arrives first
-        if (tag) {
-          headerTl.fromTo(
-            tag,
-            { opacity: 0, y: 16 },
-            { opacity: 1, y: 0, duration: 0.45, ease: 'power2.out' },
-            0
-          );
-        }
-
-        // Two-tone headline rises through horizontal mask
-        if (header) {
-          headerTl.fromTo(
-            header,
-            {
-              y: 42,
-              opacity: 0,
-            },
-            {
-              y: 0,
-              opacity: 1,
-              duration: 0.8,
-              ease: 'power3.out',
-            },
-            0.08
-          );
-        }
-
-        // Subheadline rises through horizontal mask
-        if (subline) {
-          headerTl.fromTo(
-            subline,
-            {
-              y: 30,
-              opacity: 0,
-            },
-            {
-              y: 0,
-              opacity: 1,
-              duration: 0.7,
-              ease: 'power3.out',
-            },
-            0.2
-          );
-        }
-
-        // CTA button wrap glides in
-        if (ctaWrap) {
-          headerTl.fromTo(
-            ctaWrap,
-            { opacity: 0, y: 16 },
-            { opacity: 1, y: 0, duration: 0.5, ease: 'power2.out' },
-            0.35
-          );
-        }
-
-        // Fallback for sections without header class but with inner content (like Section 4 Feeling Line)
-        if (!header && !tag && innerContent) {
-          headerTl.fromTo(
-            innerContent,
-            { opacity: 0, y: 30 },
-            { opacity: 1, y: 0, duration: 0.75, ease: 'power2.out' },
-            0.1
-          );
-        }
-
-        // 2. Cards Sequential Cascade Timeline — triggers when the section enters view
-        let cardsTl: gsap.core.Timeline | undefined;
-        if (cards && cards.length > 0) {
-          cardsTl = gsap.timeline({
-            scrollTrigger: {
-              trigger: target,
-              start: cardsTriggerOffset,
-              toggleActions: 'play none none reverse',
-            },
-          });
-
-          cardsTl.fromTo(
-            cards,
-            { opacity: 0, y: 35 },
-            {
-              opacity: 1,
-              y: 0,
-              duration: 0.65,
-              stagger: 0.08,
-              ease: 'power2.out',
-            },
-            0.15
-          );
-        }
-
-        if (sectionId) {
-          sectionTimelinesRef.current.set(sectionId, { headerTl, cardsTl });
-        }
-      };
-
-      // Set up each section in sequence:
-      // 1. Proof Strip / Categories — Typographic Horizon Rise + Sequential Card Cascade
-      const proofTarget = sectionProofStripRef.current;
-      if (proofTarget) {
-        const tag = proofTarget.querySelector('.section-tag');
-        const headline = proofTarget.querySelector('.section-headline');
-        const subline = proofTarget.querySelector('.section-subline');
-        const ctaWrap = proofTarget.querySelector('.section-cta-wrap');
-        const exploreLink = proofTarget.querySelector('.proof-explore-link');
-        const cardAnims = proofTarget.querySelectorAll('.proof-card-anim');
-        const swiper = proofTarget.querySelector('.swiper-container');
-
-        if (prefersReducedMotion) {
-          if (headline) gsap.set(headline, { opacity: 1, y: 0 });
-          if (subline) gsap.set(subline, { opacity: 1, y: 0 });
-          if (tag) gsap.set(tag, { opacity: 1, y: 0 });
-          if (ctaWrap) gsap.set(ctaWrap, { opacity: 1, y: 0 });
-          if (exploreLink) gsap.set(exploreLink, { opacity: 1, x: 0 });
-          if (cardAnims && cardAnims.length) gsap.set(cardAnims, { opacity: 1, y: 0 });
-          if (swiper) gsap.set(swiper, { opacity: 1, y: 0 });
+          const els = [tag, headline, subline, ctaWrap, ...(stepCards ? Array.from(stepCards) : [])].filter(Boolean);
+          gsap.set(els, { clearProps: 'all' });
         } else {
-          // Master horizon reveal timeline directly powered by ScrollTrigger
-          const horizonTl = gsap.timeline({
+          const setupTl = gsap.timeline({
             scrollTrigger: {
-              trigger: proofTarget,
-              start: 'top 90%',
-              toggleActions: 'play none none reverse',
+              trigger: howTarget,
+              start: 'top 75%',
+              toggleActions: 'play none none none',
+              once: true,
+            },
+            onComplete: () => {
+              const elementsToClear = [
+                tag,
+                headline,
+                subline,
+                ctaWrap,
+                ...(stepCards ? Array.from(stepCards) : []),
+              ].filter(Boolean);
+              gsap.set(elementsToClear, { clearProps: 'all' });
             },
           });
-          proofHorizonTlRef.current = horizonTl;
 
-          // 1. Domain pill arrives first from behind its mask
+          // 1. Category Tag: Anchors the top of the section
           if (tag) {
-            horizonTl.fromTo(
+            setupTl.fromTo(
               tag,
-              { opacity: 0, y: 16 },
-              { opacity: 1, y: 0, duration: 0.45, ease: 'power2.out' },
+              { opacity: 0, yPercent: 100 },
+              { opacity: 1, yPercent: 0, duration: 0.38, ease: 'power2.out' },
               0
             );
           }
 
-          // 2. Headline rises from behind the architectural horizon mask
+          // 2. Two-Tone Headline: Rises from behind architectural horizon mask
           if (headline) {
-            horizonTl.fromTo(
+            setupTl.fromTo(
               headline,
+              { opacity: 0.2, yPercent: 105 },
               {
-                y: 45,
-                opacity: 0,
-              },
-              {
-                y: 0,
                 opacity: 1,
-                duration: 0.8,
+                yPercent: 0,
+                duration: 0.65,
                 ease: 'power3.out',
               },
               0.08
             );
           }
 
-          // 3. Subheadline rises smoothly from behind its horizon mask
+          // 3. Subheadline: Rises smoothly behind its horizon mask
           if (subline) {
-            horizonTl.fromTo(
+            setupTl.fromTo(
               subline,
+              { opacity: 0, yPercent: 100 },
               {
-                y: 30,
-                opacity: 0,
-              },
-              {
-                y: 0,
                 opacity: 1,
-                duration: 0.7,
-                ease: 'power3.out',
+                yPercent: 0,
+                duration: 0.55,
+                ease: 'power2.out',
               },
-              0.2
+              0.18
             );
           }
 
-          // 4. CTA button and Explore link glide in
+          // 4. CTA Button wrap: Glides into position
           if (ctaWrap) {
-            horizonTl.fromTo(
+            setupTl.fromTo(
               ctaWrap,
-              { opacity: 0, y: 16 },
-              { opacity: 1, y: 0, duration: 0.5, ease: 'power2.out' },
-              0.3
+              { opacity: 0, yPercent: 100 },
+              { opacity: 1, yPercent: 0, duration: 0.45, ease: 'power2.out' },
+              0.26
             );
           }
 
-          if (exploreLink) {
-            horizonTl.fromTo(
-              exploreLink,
-              { opacity: 0, x: 16 },
-              { opacity: 1, x: 0, duration: 0.55, ease: 'power2.out' },
-              0.32
-            );
-          }
-
-          // 5. Category cards cascade in sequentially one by one
-          if (cardAnims && cardAnims.length > 0) {
-            horizonTl.fromTo(
-              cardAnims,
-              { opacity: 0, y: 35 },
+          // 5. Sequential Card Cascade: Steps stagger sequentially into place
+          if (stepCards && stepCards.length > 0) {
+            setupTl.fromTo(
+              stepCards,
+              {
+                opacity: 0,
+                y: 24,
+                scale: 0.985,
+              },
               {
                 opacity: 1,
                 y: 0,
-                duration: 0.65,
-                stagger: 0.08,
+                scale: 1,
+                duration: 0.48,
+                stagger: 0.1,
                 ease: 'power2.out',
               },
               0.32
             );
-          } else if (swiper) {
-            horizonTl.fromTo(
-              swiper,
-              { opacity: 0, y: 35 },
-              { opacity: 1, y: 0, duration: 0.75, ease: 'power2.out' },
-              0.32
-            );
           }
-
-          sectionTimelinesRef.current.set('section-proof-strip', { headerTl: horizonTl });
         }
       }
-
-      // 2. Problem
-      setupSectionTransition({
-        target: sectionProblemRef.current,
-        cardsSelector: '.problem-card-anim',
-      });
-
-      // 3. Shift
-      setupSectionTransition({
-        target: sectionShiftRef.current,
-        cardsSelector: '.shift-card-anim, .shift-callout',
-      });
-
-      // 4. Feeling Line
-      setupSectionTransition({
-        target: sectionFeelingRef.current,
-        headerTriggerOffset: 'top 80%',
-      });
-
-      // 5. How It Works
-      setupSectionTransition({
-        target: sectionHowRef.current,
-        cardsSelector: '.how-step-card',
-      });
-
-      // 6. Verticals
-      setupSectionTransition({
-        target: sectionVerticalsRef.current,
-        cardsSelector: '.vertical-tab-btn, .vertical-card',
-      });
-
-      // 7. Differentiation
-      setupSectionTransition({
-        target: sectionDiffRef.current,
-        cardsSelector: '.pillar-card',
-      });
-
-      // 8. Dashboard Showcase
-      setupSectionTransition({
-        target: sectionDashboardRef.current,
-        cardsSelector: '.dashboard-card',
-      });
-
-      // 9. Pricing
-      setupSectionTransition({
-        target: sectionPricingRef.current,
-        cardsSelector: '.pricing-card',
-      });
-
-      // 10. Credibility
-      setupSectionTransition({
-        target: sectionProofRef.current,
-        cardsSelector: '.credibility-card',
-      });
-
-      // 11. FAQ
-      setupSectionTransition({
-        target: sectionFaqRef.current,
-        cardsSelector: '.faq-item',
-      });
-
-      // 12. Final CTA
-      setupSectionTransition({
-        target: sectionFinalCtaRef.current,
-        headerTriggerOffset: 'top 80%',
-      });
 
       // Synchronize trigger coordinates with document height and layout
       ScrollTrigger.refresh();
 
       // Subsequent deferred refresh once fonts, swipers, and dynamic images settle
-      const delayedRefreshTimer = setTimeout(() => {
+      if (typeof document !== 'undefined' && document.fonts) {
+        document.fonts.ready.then(() => {
+          ScrollTrigger.refresh();
+        });
+      }
+
+      const delayedRefreshTimer1 = setTimeout(() => {
         ScrollTrigger.refresh();
-      }, 250);
+      }, 150);
+
+      const delayedRefreshTimer2 = setTimeout(() => {
+        ScrollTrigger.refresh();
+      }, 450);
 
       return () => {
-        clearTimeout(delayedRefreshTimer);
+        clearTimeout(delayedRefreshTimer1);
+        clearTimeout(delayedRefreshTimer2);
       };
     });
 
@@ -1191,7 +973,7 @@ export default function PageShell({
         ref={sectionFeelingRef}
         className="relative z-20 w-full min-h-[60vh] sm:min-h-[75vh] py-20 px-6 sm:px-12 text-center border-t border-stone-800/80 bg-[#0d0e12] shadow-[0_-30px_70px_rgba(0,0,0,0.95)] flex items-center justify-center"
       >
-        <div className="max-w-3xl mx-auto">
+        <div className="max-w-3xl mx-auto overflow-hidden py-1">
           <p className="section-headline font-editorial text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-stone-300 leading-tight">
             {content.feelingLine}
           </p>
