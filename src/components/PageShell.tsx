@@ -315,51 +315,56 @@ export default function PageShell({
       }
 
       // =========================================================================
-      // SETUP / HOW IT WORKS SECTION — Horizon Rise & Sequential Card Cascade
+      // SETUP / HOW IT WORKS SECTION — Decoupled Horizon Rise & Card Cascade
       // Strictly isolated to #section-how-it-works.
-      // Timing:
-      // - Trigger: 'top 75%' (fires when section header enters comfortable eye level)
-      // - Category tag arrives at 0.00s (power2.out, 0.38s)
-      // - Two-tone headline rises from behind horizon mask at 0.08s (power3.out, 0.65s)
-      // - Subheadline rises from behind horizon mask at 0.18s (power2.out, 0.55s)
-      // - CTA button arrives at 0.26s (power2.out, 0.45s)
-      // - Sequential Card Cascade: Step 1, Step 2, Step 3 stagger in with micro-elevation at 0.32s (stagger 0.10s)
-      // - Clean onComplete clears all inline GSAP transforms & opacity so hover states remain native CSS
+      // - Dedicated Horizon Rise Trigger: .how-header with start: 'top 85%'
+      // - Dedicated Card Cascade Trigger: cardContainer with start: 'top 80%'
+      // - Scoped clearProps: 'transform,opacity' runs independently on completion
       // =========================================================================
       const howTarget = sectionHowRef.current;
       if (howTarget) {
+        const headerEl = howTarget.querySelector('.how-header') || howTarget;
         const tag = howTarget.querySelector('.section-tag');
         const headline = howTarget.querySelector('.section-headline');
         const subline = howTarget.querySelector('.section-subline');
         const ctaWrap = howTarget.querySelector('.section-cta-wrap');
+        const firstCard = howTarget.querySelector('.how-step-card');
+        const cardContainer = firstCard?.parentElement || howTarget;
         const stepCards = howTarget.querySelectorAll('.how-step-card');
 
         if (prefersReducedMotion) {
           const els = [tag, headline, subline, ctaWrap, ...(stepCards ? Array.from(stepCards) : [])].filter(Boolean);
-          gsap.set(els, { clearProps: 'all' });
+          gsap.set(els, { clearProps: 'transform,opacity' });
         } else {
-          const setupTl = gsap.timeline({
+          // 1. TYPOGRAPHIC HORIZON RISE — Dedicated Header Trigger
+          // Fires when the header enters comfortable eye level (top 85% of viewport)
+          console.log('GSAP TIMELINE CREATED (headerTl)', Date.now(), {
+            headerTag: headerEl?.tagName,
+            tag: Boolean(tag),
+            headline: Boolean(headline),
+            subline: Boolean(subline),
+            ctaWrap: Boolean(ctaWrap),
+          });
+
+          const headerTl = gsap.timeline({
             scrollTrigger: {
-              trigger: howTarget,
-              start: 'top 75%',
+              trigger: headerEl,
+              start: 'top 85%',
               toggleActions: 'play none none none',
               once: true,
+              onEnter: () => {
+                console.log('SCROLLTRIGGER FIRED (headerTl)', Date.now());
+              },
             },
             onComplete: () => {
-              const elementsToClear = [
-                tag,
-                headline,
-                subline,
-                ctaWrap,
-                ...(stepCards ? Array.from(stepCards) : []),
-              ].filter(Boolean);
-              gsap.set(elementsToClear, { clearProps: 'all' });
+              const headerEls = [tag, headline, subline, ctaWrap].filter(Boolean);
+              gsap.set(headerEls, { clearProps: 'transform,opacity' });
             },
           });
 
-          // 1. Category Tag: Anchors the top of the section
+          // 1a. Category Tag: Anchors the top of the header
           if (tag) {
-            setupTl.fromTo(
+            headerTl.fromTo(
               tag,
               { opacity: 0, yPercent: 100 },
               { opacity: 1, yPercent: 0, duration: 0.38, ease: 'power2.out' },
@@ -367,9 +372,9 @@ export default function PageShell({
             );
           }
 
-          // 2. Two-Tone Headline: Rises from behind architectural horizon mask
+          // 1b. Two-Tone Headline: Rises from behind architectural horizon mask
           if (headline) {
-            setupTl.fromTo(
+            headerTl.fromTo(
               headline,
               { opacity: 0.2, yPercent: 105 },
               {
@@ -382,9 +387,9 @@ export default function PageShell({
             );
           }
 
-          // 3. Subheadline: Rises smoothly behind its horizon mask
+          // 1c. Subheadline: Rises smoothly behind its horizon mask
           if (subline) {
-            setupTl.fromTo(
+            headerTl.fromTo(
               subline,
               { opacity: 0, yPercent: 100 },
               {
@@ -397,9 +402,9 @@ export default function PageShell({
             );
           }
 
-          // 4. CTA Button wrap: Glides into position
+          // 1d. CTA Button wrap: Glides into position
           if (ctaWrap) {
-            setupTl.fromTo(
+            headerTl.fromTo(
               ctaWrap,
               { opacity: 0, yPercent: 100 },
               { opacity: 1, yPercent: 0, duration: 0.45, ease: 'power2.out' },
@@ -407,9 +412,30 @@ export default function PageShell({
             );
           }
 
-          // 5. Sequential Card Cascade: Steps stagger sequentially into place
+          // 2. SEQUENTIAL CARD CASCADE — Dedicated Cards Trigger
+          // Fires as the cards container enters viewport (top 80%), so cascade starts in full view
           if (stepCards && stepCards.length > 0) {
-            setupTl.fromTo(
+            console.log('GSAP TIMELINE CREATED (cardsTl)', Date.now(), {
+              cardContainerTag: cardContainer?.tagName,
+              stepCardsLength: stepCards.length,
+            });
+
+            const cardsTl = gsap.timeline({
+              scrollTrigger: {
+                trigger: cardContainer,
+                start: 'top 80%',
+                toggleActions: 'play none none none',
+                once: true,
+                onEnter: () => {
+                  console.log('SCROLLTRIGGER FIRED (cardsTl)', Date.now());
+                },
+              },
+              onComplete: () => {
+                gsap.set(stepCards, { clearProps: 'transform,opacity' });
+              },
+            });
+
+            cardsTl.fromTo(
               stepCards,
               {
                 opacity: 0,
@@ -424,7 +450,7 @@ export default function PageShell({
                 stagger: 0.1,
                 ease: 'power2.out',
               },
-              0.32
+              0
             );
           }
         }

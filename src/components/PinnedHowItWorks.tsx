@@ -42,7 +42,7 @@ export function PinnedHowItWorks({ content, lang, onOpenDemo }: PinnedHowItWorks
               <div
                 key={step.stepNumber}
                 onClick={() => setActiveStepIndex(idx)}
-                className={`how-step-card p-5 rounded-xl border transition-all duration-300 cursor-pointer text-left ${
+                className={`how-step-card p-5 rounded-xl border transition-[color,background-color,border-color,box-shadow] duration-200 cursor-pointer text-left ${
                   isActive
                     ? 'bg-stone-900/90 border-[#e06b48] shadow-xl shadow-[#e06b48]/10'
                     : 'bg-stone-950/60 border-stone-800/80 hover:border-stone-700 hover:bg-stone-900/40'
