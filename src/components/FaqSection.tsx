@@ -64,7 +64,8 @@ const FaqSection = forwardRef<HTMLElement, FaqSectionProps>(function FaqSection(
           accent={content.headlineAccent}
           subline={content.subline}
           align="center"
-          className="mb-12 sm:mb-16"
+          className="faq-header mb-12 sm:mb-16"
+          maskedHorizon={true}
         />
 
         {/* Accordion List */}
@@ -78,7 +79,7 @@ const FaqSection = forwardRef<HTMLElement, FaqSectionProps>(function FaqSection(
             return (
               <div
                 key={idx}
-                className={`faq-item rounded-2xl transition-all duration-200 border ${
+                className={`faq-item rounded-2xl transition-[border-color,background-color,box-shadow] duration-200 border ${
                   isOpen
                     ? 'bg-stone-950/95 border-[#e06b48]/50 shadow-[0_8px_32px_rgba(0,0,0,0.6),inset_0_1px_0_rgba(255,255,255,0.06)]'
                     : 'bg-stone-950/60 hover:bg-stone-900/60 border-stone-800/80 hover:border-stone-700/80'

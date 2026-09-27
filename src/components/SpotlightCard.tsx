@@ -43,7 +43,7 @@ export function SpotlightCard({
       onMouseMove={handleMouseMove}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
-      className={`relative overflow-hidden rounded-xl transition-all duration-300 ${className || 'border border-stone-800 bg-stone-950/80'}`}
+      className={`relative overflow-hidden rounded-xl transition-[border-color,background-color,box-shadow] duration-300 ${className || 'border border-stone-800 bg-stone-950/80'}`}
     >
       {/* Dynamic Cursor Spotlight Layer */}
       <div

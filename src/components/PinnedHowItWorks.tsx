@@ -35,44 +35,46 @@ export function PinnedHowItWorks({ content, lang, onOpenDemo }: PinnedHowItWorks
       {/* Interactive Walkthrough Layout: Steps Navigation on Left, Live Telemetry Canvas on Right */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         {/* Step Cards / Tabs (Left Column) */}
-        <div className="lg:col-span-5 space-y-3">
+        <div className="lg:col-span-5 space-y-3.5 sm:space-y-4">
           {steps.map((step, idx) => {
             const isActive = activeStepIndex === idx;
             return (
               <div
                 key={step.stepNumber}
                 onClick={() => setActiveStepIndex(idx)}
-                className={`how-step-card p-5 rounded-xl border transition-[color,background-color,border-color,box-shadow] duration-200 cursor-pointer text-left ${
+                className={`how-step-card p-5 sm:p-6 rounded-xl border min-h-[148px] sm:min-h-[164px] flex flex-col justify-between transition-[color,background-color,border-color,box-shadow] duration-200 cursor-pointer text-left ${
                   isActive
                     ? 'bg-stone-900/90 border-[#e06b48] shadow-xl shadow-[#e06b48]/10'
                     : 'bg-stone-950/60 border-stone-800/80 hover:border-stone-700 hover:bg-stone-900/40'
                 }`}
               >
-                <div className="flex items-center justify-between mb-2">
-                  <span
-                    className={`font-mono text-xs font-bold px-2 py-0.5 rounded ${
-                      isActive
-                        ? 'bg-[#e06b48] text-white'
-                        : 'bg-stone-900 text-stone-400 border border-stone-800'
+                <div>
+                  <div className="flex items-center justify-between mb-2.5 sm:mb-3">
+                    <span
+                      className={`font-mono text-xs font-bold px-2.5 py-0.5 rounded ${
+                        isActive
+                          ? 'bg-[#e06b48] text-white'
+                          : 'bg-stone-900 text-stone-400 border border-stone-800'
+                      }`}
+                    >
+                      STEP {step.stepNumber}
+                    </span>
+                    {isActive && (
+                      <span className="text-[10px] font-mono text-[#f28e72] flex items-center gap-1 font-semibold tracking-wide">
+                        <Sparkles className="w-3 h-3" />
+                        ACTIVE WORKFLOW
+                      </span>
+                    )}
+                  </div>
+                  <h3
+                    className={`text-base sm:text-[17px] font-semibold tracking-tight transition-colors ${
+                      isActive ? 'text-white' : 'text-stone-300'
                     }`}
                   >
-                    STEP {step.stepNumber}
-                  </span>
-                  {isActive && (
-                    <span className="text-[10px] font-mono text-[#f28e72] flex items-center gap-1 font-semibold">
-                      <Sparkles className="w-3 h-3" />
-                      ACTIVE WORKFLOW
-                    </span>
-                  )}
+                    {step.title}
+                  </h3>
                 </div>
-                <h3
-                  className={`text-base font-semibold transition-colors ${
-                    isActive ? 'text-white' : 'text-stone-300'
-                  }`}
-                >
-                  {step.title}
-                </h3>
-                <p className="text-xs text-stone-400 mt-1.5 leading-relaxed font-sans">
+                <p className="text-xs sm:text-[13px] text-stone-400 mt-2 leading-relaxed font-sans">
                   {step.caption}
                 </p>
               </div>

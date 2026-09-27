@@ -315,145 +315,373 @@ export default function PageShell({
       }
 
       // =========================================================================
-      // SETUP / HOW IT WORKS SECTION — Decoupled Horizon Rise & Card Cascade
-      // Strictly isolated to #section-how-it-works.
-      // - Dedicated Horizon Rise Trigger: .how-header with start: 'top 85%'
-      // - Dedicated Card Cascade Trigger: cardContainer with start: 'top 80%'
-      // - Scoped clearProps: 'transform,opacity' runs independently on completion
+      // DECOUPLED MOTION ENGINE: HORIZON RISE & SEQUENTIAL CASCADE
+      // Applies the verified, decoupled ScrollTrigger pattern across all sections:
+      // 1. setupHorizonRise: Dedicated header trigger (start: 'top 85%'),
+      //    animates tag, headline, subline, cta in masked containers.
+      // 2. setupCardCascade: Dedicated grid trigger (start: 'top 80%'),
+      //    animates cards with deliberate stagger and proportional travel.
+      // 3. Scoped clearProps: 'transform,opacity' runs independently per timeline.
       // =========================================================================
-      const howTarget = sectionHowRef.current;
-      if (howTarget) {
-        const headerEl = howTarget.querySelector('.how-header') || howTarget;
-        const tag = howTarget.querySelector('.section-tag');
-        const headline = howTarget.querySelector('.section-headline');
-        const subline = howTarget.querySelector('.section-subline');
-        const ctaWrap = howTarget.querySelector('.section-cta-wrap');
-        const firstCard = howTarget.querySelector('.how-step-card');
-        const cardContainer = firstCard?.parentElement || howTarget;
-        const stepCards = howTarget.querySelectorAll('.how-step-card');
+
+      const setupHorizonRise = (
+        headerEl: Element | null,
+        options: { start?: string; delay?: number } = {}
+      ) => {
+        if (!headerEl) return;
+        const tag = headerEl.querySelector('.section-tag');
+        const headline = headerEl.querySelector('.section-headline');
+        const subline = headerEl.querySelector('.section-subline');
+        const ctaWrap = headerEl.querySelector('.section-cta-wrap');
 
         if (prefersReducedMotion) {
-          const els = [tag, headline, subline, ctaWrap, ...(stepCards ? Array.from(stepCards) : [])].filter(Boolean);
+          const els = [tag, headline, subline, ctaWrap].filter(Boolean);
           gsap.set(els, { clearProps: 'transform,opacity' });
-        } else {
-          // 1. TYPOGRAPHIC HORIZON RISE — Dedicated Header Trigger
-          // Fires when the header enters comfortable eye level (top 85% of viewport)
-          console.log('GSAP TIMELINE CREATED (headerTl)', Date.now(), {
-            headerTag: headerEl?.tagName,
-            tag: Boolean(tag),
-            headline: Boolean(headline),
-            subline: Boolean(subline),
-            ctaWrap: Boolean(ctaWrap),
-          });
+          return;
+        }
 
-          const headerTl = gsap.timeline({
-            scrollTrigger: {
-              trigger: headerEl,
-              start: 'top 85%',
-              toggleActions: 'play none none none',
-              once: true,
-              onEnter: () => {
-                console.log('SCROLLTRIGGER FIRED (headerTl)', Date.now());
-              },
+        const tl = gsap.timeline({
+          scrollTrigger: {
+            trigger: headerEl,
+            start: options.start || 'top 85%',
+            toggleActions: 'play none none none',
+            once: true,
+          },
+          onComplete: () => {
+            const els = [tag, headline, subline, ctaWrap].filter(Boolean);
+            gsap.set(els, { clearProps: 'transform,opacity' });
+          },
+        });
+
+        if (tag) {
+          tl.fromTo(
+            tag,
+            { opacity: 0, yPercent: 100 },
+            { opacity: 1, yPercent: 0, duration: 0.50, ease: 'power2.out' },
+            0
+          );
+        }
+
+        if (headline) {
+          tl.fromTo(
+            headline,
+            { opacity: 0.2, yPercent: 105 },
+            {
+              opacity: 1,
+              yPercent: 0,
+              duration: 0.85,
+              ease: 'power3.out',
             },
-            onComplete: () => {
-              const headerEls = [tag, headline, subline, ctaWrap].filter(Boolean);
-              gsap.set(headerEls, { clearProps: 'transform,opacity' });
+            0.08
+          );
+        }
+
+        if (subline) {
+          tl.fromTo(
+            subline,
+            { opacity: 0, yPercent: 100 },
+            {
+              opacity: 1,
+              yPercent: 0,
+              duration: 0.72,
+              ease: 'power2.out',
             },
-          });
+            0.20
+          );
+        }
 
-          // 1a. Category Tag: Anchors the top of the header
-          if (tag) {
-            headerTl.fromTo(
-              tag,
-              { opacity: 0, yPercent: 100 },
-              { opacity: 1, yPercent: 0, duration: 0.38, ease: 'power2.out' },
-              0
-            );
-          }
+        if (ctaWrap) {
+          tl.fromTo(
+            ctaWrap,
+            { opacity: 0, yPercent: 100 },
+            { opacity: 1, yPercent: 0, duration: 0.60, ease: 'power2.out' },
+            0.32
+          );
+        }
 
-          // 1b. Two-Tone Headline: Rises from behind architectural horizon mask
-          if (headline) {
-            headerTl.fromTo(
-              headline,
-              { opacity: 0.2, yPercent: 105 },
-              {
-                opacity: 1,
-                yPercent: 0,
-                duration: 0.65,
-                ease: 'power3.out',
-              },
-              0.08
-            );
-          }
+        return tl;
+      };
 
-          // 1c. Subheadline: Rises smoothly behind its horizon mask
-          if (subline) {
-            headerTl.fromTo(
-              subline,
-              { opacity: 0, yPercent: 100 },
-              {
-                opacity: 1,
-                yPercent: 0,
-                duration: 0.55,
-                ease: 'power2.out',
-              },
-              0.18
-            );
-          }
+      const setupCardCascade = (
+        containerEl: Element | null,
+        cardsNodeList: NodeListOf<Element> | Element[] | null,
+        options: {
+          start?: string;
+          stagger?: number;
+          y?: number;
+          scale?: number;
+          duration?: number;
+        } = {}
+      ) => {
+        if (!containerEl || !cardsNodeList || cardsNodeList.length === 0) return;
+        const cards = Array.from(cardsNodeList);
 
-          // 1d. CTA Button wrap: Glides into position
-          if (ctaWrap) {
-            headerTl.fromTo(
-              ctaWrap,
-              { opacity: 0, yPercent: 100 },
-              { opacity: 1, yPercent: 0, duration: 0.45, ease: 'power2.out' },
-              0.26
-            );
-          }
+        if (prefersReducedMotion) {
+          gsap.set(cards, { clearProps: 'transform,opacity' });
+          return;
+        }
 
-          // 2. SEQUENTIAL CARD CASCADE — Dedicated Cards Trigger
-          // Fires as the cards container enters viewport (top 80%), so cascade starts in full view
-          if (stepCards && stepCards.length > 0) {
-            console.log('GSAP TIMELINE CREATED (cardsTl)', Date.now(), {
-              cardContainerTag: cardContainer?.tagName,
-              stepCardsLength: stepCards.length,
-            });
+        const tl = gsap.timeline({
+          scrollTrigger: {
+            trigger: containerEl,
+            start: options.start || 'top 80%',
+            toggleActions: 'play none none none',
+            once: true,
+          },
+          onComplete: () => {
+            gsap.set(cards, { clearProps: 'transform,opacity' });
+          },
+        });
 
-            const cardsTl = gsap.timeline({
+        tl.fromTo(
+          cards,
+          {
+            opacity: 0,
+            y: options.y ?? 36,
+            scale: options.scale ?? 0.975,
+          },
+          {
+            opacity: 1,
+            y: 0,
+            scale: 1,
+            duration: options.duration ?? 0.70,
+            stagger: options.stagger ?? 0.16,
+            ease: 'power2.out',
+          },
+          0
+        );
+
+        return tl;
+      };
+
+      // -------------------------------------------------------------------------
+      // SECTION 1.5 — PROOF STRIP
+      // -------------------------------------------------------------------------
+      if (sectionProofStripRef.current) {
+        setupHorizonRise(sectionProofStripRef.current.querySelector('.proof-strip-header'));
+      }
+
+      // -------------------------------------------------------------------------
+      // SECTION 2 — THE PROBLEM
+      // -------------------------------------------------------------------------
+      if (sectionProblemRef.current) {
+        setupHorizonRise(sectionProblemRef.current.querySelector('.problem-header'));
+      }
+
+      // -------------------------------------------------------------------------
+      // SECTION 3 — THE SHIFT
+      // -------------------------------------------------------------------------
+      if (sectionShiftRef.current) {
+        setupHorizonRise(sectionShiftRef.current.querySelector('.shift-header'));
+
+        // Metaphor callout smooth reveal
+        const callout = sectionShiftRef.current.querySelector('.shift-callout');
+        if (callout && !prefersReducedMotion) {
+          gsap.fromTo(
+            callout,
+            { opacity: 0, y: 24 },
+            {
+              opacity: 1,
+              y: 0,
+              duration: 0.65,
+              ease: 'power2.out',
               scrollTrigger: {
-                trigger: cardContainer,
+                trigger: callout,
+                start: 'top 85%',
+                toggleActions: 'play none none none',
+                once: true,
+              },
+              onComplete: () => {
+                gsap.set(callout, { clearProps: 'transform,opacity' });
+              },
+            }
+          );
+        }
+      }
+
+      // -------------------------------------------------------------------------
+      // INTERLUDE — THE FEELING LINE
+      // -------------------------------------------------------------------------
+      if (sectionFeelingRef.current) {
+        const feelingP = sectionFeelingRef.current.querySelector('.section-headline');
+        if (feelingP && !prefersReducedMotion) {
+          gsap.fromTo(
+            feelingP,
+            { opacity: 0.2, yPercent: 75 },
+            {
+              opacity: 1,
+              yPercent: 0,
+              duration: 0.90,
+              ease: 'power3.out',
+              scrollTrigger: {
+                trigger: sectionFeelingRef.current,
                 start: 'top 80%',
                 toggleActions: 'play none none none',
                 once: true,
-                onEnter: () => {
-                  console.log('SCROLLTRIGGER FIRED (cardsTl)', Date.now());
-                },
               },
               onComplete: () => {
-                gsap.set(stepCards, { clearProps: 'transform,opacity' });
+                gsap.set(feelingP, { clearProps: 'transform,opacity' });
               },
-            });
-
-            cardsTl.fromTo(
-              stepCards,
-              {
-                opacity: 0,
-                y: 24,
-                scale: 0.985,
-              },
-              {
-                opacity: 1,
-                y: 0,
-                scale: 1,
-                duration: 0.48,
-                stagger: 0.1,
-                ease: 'power2.out',
-              },
-              0
-            );
-          }
+            }
+          );
         }
+      }
+
+      // -------------------------------------------------------------------------
+      // SECTION 4 — HOW IT WORKS (Verified Benchmark)
+      // -------------------------------------------------------------------------
+      const howTarget = sectionHowRef.current;
+      if (howTarget) {
+        setupHorizonRise(howTarget.querySelector('.how-header') || howTarget);
+        const firstCard = howTarget.querySelector('.how-step-card');
+        const cardContainer = firstCard?.parentElement || howTarget;
+        const stepCards = howTarget.querySelectorAll('.how-step-card');
+        setupCardCascade(cardContainer, stepCards, {
+          y: 36,
+          scale: 0.975,
+          duration: 0.70,
+          stagger: 0.16,
+        });
+      }
+
+      // -------------------------------------------------------------------------
+      // SECTION 5 — VERTICALS (Built For Your Business)
+      // -------------------------------------------------------------------------
+      const vertTarget = sectionVerticalsRef.current;
+      if (vertTarget) {
+        setupHorizonRise(vertTarget.querySelector('.verticals-header') || vertTarget);
+
+        // Vertical card entrance glide
+        const vertCard = vertTarget.querySelector('.vertical-card');
+        if (vertCard && !prefersReducedMotion) {
+          gsap.fromTo(
+            vertCard,
+            { opacity: 0, y: 32, scale: 0.98 },
+            {
+              opacity: 1,
+              y: 0,
+              scale: 1,
+              duration: 0.75,
+              ease: 'power2.out',
+              scrollTrigger: {
+                trigger: vertCard,
+                start: 'top 80%',
+                toggleActions: 'play none none none',
+                once: true,
+              },
+              onComplete: () => {
+                gsap.set(vertCard, { clearProps: 'transform,opacity' });
+              },
+            }
+          );
+        }
+      }
+
+      // -------------------------------------------------------------------------
+      // SECTION 6 — DIFFERENTIATION PILLARS
+      // -------------------------------------------------------------------------
+      const diffTarget = sectionDiffRef.current;
+      if (diffTarget) {
+        setupHorizonRise(diffTarget.querySelector('.diff-header') || diffTarget);
+        const firstPillar = diffTarget.querySelector('.pillar-card');
+        const pillarContainer = firstPillar?.parentElement || diffTarget;
+        const pillarCards = diffTarget.querySelectorAll('.pillar-card');
+        setupCardCascade(pillarContainer, pillarCards, {
+          y: 36,
+          scale: 0.975,
+          duration: 0.70,
+          stagger: 0.16,
+        });
+      }
+
+      // -------------------------------------------------------------------------
+      // SECTION 7 — DASHBOARD / KPI VITALS
+      // -------------------------------------------------------------------------
+      const dashTarget = sectionDashboardRef.current;
+      if (dashTarget) {
+        setupHorizonRise(dashTarget.querySelector('.dashboard-header') || dashTarget);
+        const firstDashCard = dashTarget.querySelector('.dashboard-card');
+        const dashGrid = firstDashCard?.parentElement || dashTarget;
+        const dashCards = dashTarget.querySelectorAll('.dashboard-card');
+        setupCardCascade(dashGrid, dashCards, {
+          y: 32,
+          scale: 0.98,
+          duration: 0.65,
+          stagger: 0.14,
+        });
+      }
+
+      // -------------------------------------------------------------------------
+      // SECTION 8 — PRICING TIERS
+      // -------------------------------------------------------------------------
+      const pricingTarget = sectionPricingRef.current;
+      if (pricingTarget) {
+        setupHorizonRise(pricingTarget.querySelector('.pricing-header') || pricingTarget);
+        const firstPricingCard = pricingTarget.querySelector('.pricing-card');
+        const pricingGrid = firstPricingCard?.parentElement || pricingTarget;
+        const pricingCards = pricingTarget.querySelectorAll('.pricing-card');
+        setupCardCascade(pricingGrid, pricingCards, {
+          y: 36,
+          scale: 0.975,
+          duration: 0.75,
+          stagger: 0.18,
+        });
+      }
+
+      // -------------------------------------------------------------------------
+      // SECTION 9 — CREDIBILITY (Proven Foundation)
+      // -------------------------------------------------------------------------
+      const proofTarget = sectionProofRef.current;
+      if (proofTarget) {
+        setupHorizonRise(proofTarget.querySelector('.credibility-header') || proofTarget);
+        const credCard = proofTarget.querySelector('.credibility-card');
+        if (credCard && !prefersReducedMotion) {
+          gsap.fromTo(
+            credCard,
+            { opacity: 0, y: 32, scale: 0.985 },
+            {
+              opacity: 1,
+              y: 0,
+              scale: 1,
+              duration: 0.75,
+              ease: 'power2.out',
+              scrollTrigger: {
+                trigger: credCard,
+                start: 'top 80%',
+                toggleActions: 'play none none none',
+                once: true,
+              },
+              onComplete: () => {
+                gsap.set(credCard, { clearProps: 'transform,opacity' });
+              },
+            }
+          );
+        }
+      }
+
+      // -------------------------------------------------------------------------
+      // SECTION 10 — FAQ (Questions & Answers)
+      // -------------------------------------------------------------------------
+      const faqTarget = sectionFaqRef.current;
+      if (faqTarget) {
+        setupHorizonRise(faqTarget.querySelector('.faq-header') || faqTarget);
+        const firstFaq = faqTarget.querySelector('.faq-item');
+        const faqList = firstFaq?.parentElement || faqTarget;
+        const faqItems = faqTarget.querySelectorAll('.faq-item');
+        setupCardCascade(faqList, faqItems, {
+          y: 24,
+          scale: 0.99,
+          duration: 0.55,
+          stagger: 0.10,
+        });
+      }
+
+      // -------------------------------------------------------------------------
+      // SECTION 11 — FINAL CTA
+      // -------------------------------------------------------------------------
+      const finalCtaTarget = sectionFinalCtaRef.current;
+      if (finalCtaTarget) {
+        setupHorizonRise(finalCtaTarget.querySelector('.final-cta-header') || finalCtaTarget);
       }
 
       // Synchronize trigger coordinates with document height and layout
@@ -906,7 +1134,8 @@ export default function PageShell({
                   accent={content.proofStrip.headlineAccent}
                   subline={content.proofStrip.subline}
                   align="left"
-                  className="mb-0"
+                  className="proof-strip-header mb-0"
+                  maskedHorizon={true}
                   ctaButton={{ text: content.tryStartButton, onClick: onOpenDemo }}
                 />
               </div>
@@ -948,6 +1177,7 @@ export default function PageShell({
             accent={content.problem.headlineAccent}
             subline={content.problem.subline}
             className="problem-header"
+            maskedHorizon={true}
             ctaButton={{ text: content.tryStartButton, onClick: onOpenDemo }}
           />
 
@@ -973,6 +1203,7 @@ export default function PageShell({
             accent={content.shift.headlineAccent}
             subline={content.shift.subline}
             className="shift-header"
+            maskedHorizon={true}
             ctaButton={{ text: content.tryStartButton, onClick: onOpenDemo }}
           />
 
@@ -1037,6 +1268,8 @@ export default function PageShell({
             accent={content.verticals.headlineAccent}
             subline={content.verticals.subline}
             align="left"
+            className="verticals-header"
+            maskedHorizon={true}
             ctaButton={{ text: content.tryStartButton, onClick: onOpenDemo }}
           />
 
@@ -1174,6 +1407,8 @@ export default function PageShell({
             accent={content.differentiation.headlineAccent}
             subline={content.differentiation.subline}
             align="left"
+            className="diff-header"
+            maskedHorizon={true}
             ctaButton={{ text: content.tryStartButton, onClick: onOpenDemo }}
           />
 
@@ -1181,7 +1416,7 @@ export default function PageShell({
             {content.differentiation.pillars.map((pillar) => (
               <div
                 key={pillar.number}
-                className="pillar-card p-6 sm:p-7 rounded-xl bg-stone-950/85 backdrop-blur-md border border-stone-800 hover:border-stone-700 transition flex flex-col justify-between shadow-lg"
+                className="pillar-card p-6 sm:p-7 rounded-xl bg-stone-950/85 backdrop-blur-md border border-stone-800 hover:border-stone-700 transition-[border-color,background-color,box-shadow] duration-200 flex flex-col justify-between shadow-lg"
               >
                 <div>
                   <div className="text-xs font-mono text-[#b85438] font-bold mb-3">
@@ -1222,6 +1457,8 @@ export default function PageShell({
             accent={content.dashboard.headlineAccent}
             subline={content.dashboard.subline}
             align="left"
+            className="dashboard-header"
+            maskedHorizon={true}
             ctaButton={{ text: content.tryStartButton, onClick: onOpenDemo }}
           />
 
@@ -1371,6 +1608,8 @@ export default function PageShell({
             accent={content.pricing.headlineAccent}
             subline={content.pricing.subline}
             align="center"
+            className="pricing-header"
+            maskedHorizon={true}
             ctaButton={{ text: content.tryStartButton, onClick: onOpenDemo }}
           />
 
@@ -1378,7 +1617,7 @@ export default function PageShell({
             {content.pricing.tiers.map((tier, idx) => (
               <SpotlightCard
                 key={idx}
-                className={`pricing-card p-8 rounded-2xl flex flex-col justify-between transition ${
+                className={`pricing-card p-8 rounded-2xl flex flex-col justify-between transition-[border-color,background-color,box-shadow] duration-200 ${
                   tier.highlighted
                     ? 'border-[#e06b48] shadow-2xl relative'
                     : 'border-stone-800 shadow-xl'
@@ -1461,7 +1700,8 @@ export default function PageShell({
             primary={content.credibility.headlinePrimary}
             accent={content.credibility.headlineAccent}
             align="center"
-            className="mb-8"
+            className="credibility-header mb-8"
+            maskedHorizon={true}
             ctaButton={{ text: content.tryStartButton, onClick: onOpenDemo }}
           />
 
@@ -1513,7 +1753,8 @@ export default function PageShell({
             accent={content.finalCta.headlineAccent}
             subline={content.finalCta.subline}
             align="center"
-            className="mb-4"
+            className="final-cta-header mb-4"
+            maskedHorizon={true}
             ctaButton={{ text: content.finalCta.ctaButton, onClick: onOpenDemo }}
           />
 
