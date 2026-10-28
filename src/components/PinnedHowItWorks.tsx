@@ -7,6 +7,7 @@ interface PinnedHowItWorksProps {
   content: LandingContent;
   lang: Language;
   onOpenDemo: () => void;
+  theme?: 'terracotta' | 'dark' | 'light';
 }
 
 /**
@@ -14,7 +15,7 @@ interface PinnedHowItWorksProps {
  * Sequential step walkthrough with synchronized mock dashboard states.
  * Users can click through the 4 steps or view the responsive breakdown.
  */
-export function PinnedHowItWorks({ content, lang, onOpenDemo }: PinnedHowItWorksProps) {
+export function PinnedHowItWorks({ content, lang, onOpenDemo, theme = 'terracotta' }: PinnedHowItWorksProps) {
   const [activeStepIndex, setActiveStepIndex] = useState(0);
   const steps = content.howItWorks.steps;
   const activeStep = steps[activeStepIndex];
@@ -29,6 +30,7 @@ export function PinnedHowItWorks({ content, lang, onOpenDemo }: PinnedHowItWorks
         subline={content.howItWorks.subline}
         className="how-header"
         maskedHorizon={true}
+        theme={theme}
         ctaButton={{ text: content.tryStartButton, onClick: onOpenDemo }}
       />
 
@@ -43,7 +45,11 @@ export function PinnedHowItWorks({ content, lang, onOpenDemo }: PinnedHowItWorks
                 key={step.stepNumber}
                 onClick={() => setActiveStepIndex(idx)}
                 className={`how-step-card p-5 sm:p-6 rounded-xl border min-h-[148px] sm:min-h-[164px] flex flex-col justify-between transition-[color,background-color,border-color,box-shadow] duration-200 cursor-pointer text-left ${
-                  isActive
+                  theme === 'terracotta'
+                    ? isActive
+                      ? 'bg-stone-950/95 border-white/50 shadow-2xl ring-1 ring-white/20'
+                      : 'bg-[#782c18]/60 border-white/10 hover:border-white/25 hover:bg-[#782c18]/80'
+                    : isActive
                     ? 'bg-stone-900/90 border-[#e06b48] shadow-xl shadow-[#e06b48]/10'
                     : 'bg-stone-950/60 border-stone-800/80 hover:border-stone-700 hover:bg-stone-900/40'
                 }`}
@@ -52,7 +58,11 @@ export function PinnedHowItWorks({ content, lang, onOpenDemo }: PinnedHowItWorks
                   <div className="flex items-center justify-between mb-2.5 sm:mb-3">
                     <span
                       className={`font-mono text-xs font-bold px-2.5 py-0.5 rounded ${
-                        isActive
+                        theme === 'terracotta'
+                          ? isActive
+                            ? 'bg-white text-stone-950'
+                            : 'bg-black/30 text-stone-200 border border-white/10'
+                          : isActive
                           ? 'bg-[#e06b48] text-white'
                           : 'bg-stone-900 text-stone-400 border border-stone-800'
                       }`}
@@ -60,7 +70,9 @@ export function PinnedHowItWorks({ content, lang, onOpenDemo }: PinnedHowItWorks
                       STEP {step.stepNumber}
                     </span>
                     {isActive && (
-                      <span className="text-[10px] font-mono text-[#f28e72] flex items-center gap-1 font-semibold tracking-wide">
+                      <span className={`text-[10px] font-mono flex items-center gap-1 font-semibold tracking-wide ${
+                        theme === 'terracotta' ? 'text-amber-200' : 'text-[#f28e72]'
+                      }`}>
                         <Sparkles className="w-3 h-3" />
                         ACTIVE WORKFLOW
                       </span>
@@ -68,13 +80,15 @@ export function PinnedHowItWorks({ content, lang, onOpenDemo }: PinnedHowItWorks
                   </div>
                   <h3
                     className={`text-base sm:text-[17px] font-semibold tracking-tight transition-colors ${
-                      isActive ? 'text-white' : 'text-stone-300'
+                      isActive ? 'text-white' : (theme === 'terracotta' ? 'text-stone-200' : 'text-stone-300')
                     }`}
                   >
                     {step.title}
                   </h3>
                 </div>
-                <p className="text-xs sm:text-[13px] text-stone-400 mt-2 leading-relaxed font-sans">
+                <p className={`text-xs sm:text-[13px] mt-2 leading-relaxed font-sans ${
+                  theme === 'terracotta' ? 'text-stone-200/80' : 'text-stone-400'
+                }`}>
                   {step.caption}
                 </p>
               </div>

@@ -4,6 +4,7 @@ import { Language } from '../content/copy';
 
 interface BeforeAfterSliderProps {
   lang: Language;
+  theme?: 'dark' | 'light' | 'terracotta';
 }
 
 /**
@@ -12,7 +13,7 @@ interface BeforeAfterSliderProps {
  * - Left: "Before Atrium" (Scattered WhatsApp messages, paper logs, manual register blind spots)
  * - Right: "With Atrium" (Unified synchronized floor desk, instant reconciliation, live telemetry)
  */
-export function BeforeAfterSlider({ lang }: BeforeAfterSliderProps) {
+export function BeforeAfterSlider({ lang, theme = 'dark' }: BeforeAfterSliderProps) {
   const [sliderPos, setSliderPos] = useState(50); // percentage 0 - 100
   const [isDragging, setIsDragging] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -40,14 +41,28 @@ export function BeforeAfterSlider({ lang }: BeforeAfterSliderProps) {
 
   const isArabic = lang === 'ar';
 
+  const titleClass =
+    theme === 'light'
+      ? 'text-stone-900'
+      : theme === 'terracotta'
+      ? 'text-white'
+      : 'text-stone-100';
+
+  const sublineClass =
+    theme === 'light'
+      ? 'text-stone-500'
+      : theme === 'terracotta'
+      ? 'text-stone-200/80'
+      : 'text-stone-400';
+
   return (
-    <div className="before-after-slider w-full my-12">
+    <div className="before-after-slider w-full my-6 sm:my-8">
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 mb-4">
         <div>
-          <span className="text-[10px] font-mono text-[#e06b48] uppercase tracking-widest font-semibold block mb-1">
+          <span className="text-[10px] font-mono text-[#b85438] uppercase tracking-widest font-semibold block mb-1">
             {lang === 'ar' ? 'المقارنة الميدانية التفاعلية' : lang === 'fr' ? 'Comparatif Interactif sur le Terrain' : 'Interactive Operational Comparison'}
           </span>
-          <h3 className="font-editorial text-xl sm:text-2xl font-bold text-stone-100">
+          <h3 className={`font-editorial text-xl sm:text-2xl font-bold ${titleClass}`}>
             {lang === 'ar'
               ? 'اسحب المؤشر لترى الفارق على أرض الواقع'
               : lang === 'fr'
@@ -55,8 +70,8 @@ export function BeforeAfterSlider({ lang }: BeforeAfterSliderProps) {
               : 'Drag the slider to inspect the operational contrast'}
           </h3>
         </div>
-        <div className="text-[11px] font-mono text-stone-400 flex items-center gap-2">
-          <SlidersHorizontal className="w-3.5 h-3.5 text-[#e06b48]" />
+        <div className={`text-[11px] font-mono ${sublineClass} flex items-center gap-2`}>
+          <SlidersHorizontal className="w-3.5 h-3.5 text-[#b85438]" />
           <span>{lang === 'ar' ? 'اسحب يميناً ويساراً' : 'Drag left or right'}</span>
         </div>
       </div>

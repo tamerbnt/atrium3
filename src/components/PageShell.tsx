@@ -102,8 +102,12 @@ export default function PageShell({
         'section-how-it-works',
         'section-verticals',
         'section-differentiation',
+        'section-dashboard',
+        'section-slider',
         'section-pricing',
+        'section-proof',
         'section-faq',
+        'section-final-cta',
       ];
       const scrollPos = scrollY + 160;
       for (let i = sectionIds.length - 1; i >= 0; i--) {
@@ -1119,14 +1123,14 @@ export default function PageShell({
         <section
           id="section-proof-strip"
           ref={sectionProofStripRef}
-          className="relative z-20 w-full min-h-[100dvh] py-10 sm:py-14 lg:py-16 px-6 sm:px-12 border-t border-stone-800/80 bg-stone-950 shadow-[0_-40px_90px_rgba(0,0,0,0.98),0_-1px_0_rgba(255,255,255,0.06)] flex flex-col justify-center will-change-transform"
+          className="relative z-20 w-full min-h-[100dvh] py-16 sm:py-20 lg:py-24 px-6 sm:px-12 border-t border-stone-800/80 bg-[#09090b] shadow-[0_-40px_90px_rgba(0,0,0,0.98),0_-1px_0_rgba(255,255,255,0.06)] flex flex-col justify-center will-change-transform"
         >
           {/* Ambient studio light catch on rising sheet edge */}
           <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-5xl h-px bg-gradient-to-r from-transparent via-[#b85438]/50 to-transparent pointer-events-none" />
 
-          <div className="max-w-6xl mx-auto w-full">
-            <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-6 pb-2">
-              <div className="max-w-2xl">
+          <div className="max-w-7xl mx-auto w-full">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
+              <div className="lg:col-span-5 space-y-6">
                 <SectionHeader
                   icon={Layers}
                   tag={content.proofStrip.tag}
@@ -1136,87 +1140,120 @@ export default function PageShell({
                   align="left"
                   className="proof-strip-header mb-0"
                   maskedHorizon={true}
+                  theme="dark"
                   ctaButton={{ text: content.tryStartButton, onClick: onOpenDemo }}
                 />
-              </div>
-              <button
-                type="button"
-                onClick={() => scrollTo('section-verticals')}
-                className="proof-explore-link shrink-0 text-xs font-mono text-[#e06b48] hover:text-[#f28e72] transition underline underline-offset-4 flex items-center gap-1.5 cursor-pointer"
-              >
-                <span>Explore deep interactive setups</span>
-                <ChevronRight className="w-3.5 h-3.5" />
-              </button>
-            </div>
 
-            <CategoryCardSwiper
-              categories={content.proofStrip.categories}
-              onSelectCategory={(catId) => {
-                setActiveVertical(catId);
-                scrollTo('section-verticals');
-              }}
-            />
+                <div className="pt-2">
+                  <button
+                    type="button"
+                    onClick={() => scrollTo('section-verticals')}
+                    className="proof-explore-link shrink-0 text-xs font-mono text-[#e06b48] hover:text-[#f28e72] transition underline underline-offset-4 flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <span>Explore deep interactive setups</span>
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="lg:col-span-7">
+                <CategoryCardSwiper
+                  categories={content.proofStrip.categories}
+                  onSelectCategory={(catId) => {
+                    setActiveVertical(catId);
+                    scrollTo('section-verticals');
+                  }}
+                />
+              </div>
+            </div>
           </div>
         </section>
       </div>
 
       {/* ------------------------------------------------------------- */}
       {/* SECTION 2 — THE PROBLEM (Before Atrium) */}
-      {/* Discrete triggered animation on enter (scrub: false) */}
+      {/* Background: Rich Terracotta (#963c24) */}
+      {/* 2-Column Zigzag: Swiper on Left, Narrative on Right */}
       {/* ------------------------------------------------------------- */}
       <section
         id="section-problem"
         ref={sectionProblemRef}
-        className="relative z-20 w-full py-20 sm:py-28 px-6 sm:px-12 border-t border-stone-800/80 bg-[#09090b] shadow-[0_-30px_70px_rgba(0,0,0,0.95)] flex items-center justify-center"
+        className="relative z-20 w-full py-24 sm:py-32 px-6 sm:px-12 border-t border-[#7d2f1a] bg-[#963c24] text-white shadow-[0_-30px_70px_rgba(0,0,0,0.5)] flex items-center justify-center"
       >
-        <div className="max-w-5xl mx-auto w-full">
-          <SectionHeader
-            icon={AlertCircle}
-            tag={content.problem.tag}
-            primary={content.problem.headlinePrimary}
-            accent={content.problem.headlineAccent}
-            subline={content.problem.subline}
-            className="problem-header"
-            maskedHorizon={true}
-            ctaButton={{ text: content.tryStartButton, onClick: onOpenDemo }}
-          />
+        <div className="max-w-7xl mx-auto w-full">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
+            {/* Visuals on Left */}
+            <div className="lg:col-span-7 lg:order-1">
+              <ProblemCardSwiper points={content.problem.points} />
+            </div>
 
-          {/* Swipable Infinite Bottlenecks with Centered Controls */}
-          <ProblemCardSwiper points={content.problem.points} />
+            {/* Narrative on Right */}
+            <div className="lg:col-span-5 lg:order-2 space-y-6">
+              <SectionHeader
+                icon={AlertCircle}
+                tag={content.problem.tag}
+                primary={content.problem.headlinePrimary}
+                accent={content.problem.headlineAccent}
+                subline={content.problem.subline}
+                className="problem-header mb-0"
+                maskedHorizon={true}
+                theme="terracotta"
+                align="left"
+                ctaButton={{ text: content.tryStartButton, onClick: onOpenDemo }}
+              />
+
+              <div className="p-5 rounded-2xl bg-black/25 border border-white/10 text-xs text-stone-100 font-sans leading-relaxed space-y-2">
+                <div className="text-[10px] font-mono text-amber-200 uppercase tracking-wider font-semibold">
+                  Field Reality Assessment
+                </div>
+                <p>
+                  Scattered WhatsApp messages, manual pen-and-paper registers, and unlinked payment logs create blind spots that bleed profits daily. Atrium eliminates this operational drift.
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
       {/* ------------------------------------------------------------- */}
       {/* SECTION 3 — THE SHIFT (With Atrium) */}
-      {/* Discrete triggered animation on enter (scrub: false) */}
+      {/* Background: Crisp Off-White (#fbfbfa) */}
+      {/* 2-Column Zigzag: Narrative on Left, Swiper on Right */}
       {/* ------------------------------------------------------------- */}
       <section
         id="section-shift"
         ref={sectionShiftRef}
-        className="relative z-20 w-full py-20 sm:py-28 px-6 sm:px-12 border-t border-stone-800/80 bg-stone-950 shadow-[0_-30px_70px_rgba(0,0,0,0.95)] flex items-center justify-center"
+        className="relative z-20 w-full py-24 sm:py-32 px-6 sm:px-12 border-t border-stone-200 bg-[#fbfbfa] text-stone-900 shadow-[0_-20px_50px_rgba(0,0,0,0.06)] flex items-center justify-center"
       >
-        <div className="max-w-5xl mx-auto w-full">
-          <SectionHeader
-            icon={Sparkles}
-            tag={content.shift.tag}
-            primary={content.shift.headlinePrimary}
-            accent={content.shift.headlineAccent}
-            subline={content.shift.subline}
-            className="shift-header"
-            maskedHorizon={true}
-            ctaButton={{ text: content.tryStartButton, onClick: onOpenDemo }}
-          />
+        <div className="max-w-7xl mx-auto w-full">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
+            {/* Narrative on Left */}
+            <div className="lg:col-span-5 lg:order-1 space-y-6">
+              <SectionHeader
+                icon={Sparkles}
+                tag={content.shift.tag}
+                primary={content.shift.headlinePrimary}
+                accent={content.shift.headlineAccent}
+                subline={content.shift.subline}
+                className="shift-header mb-0"
+                maskedHorizon={true}
+                theme="light"
+                align="left"
+                ctaButton={{ text: content.tryStartButton, onClick: onOpenDemo }}
+              />
 
-          {/* Swipable Infinite Shift Resolutions with Centered Controls */}
-          <ShiftCardSwiper points={content.shift.points} />
+              <div className="shift-callout p-6 rounded-2xl bg-white border border-stone-200 shadow-md flex items-center gap-3.5 text-xs font-mono text-stone-700">
+                <div className="w-3.5 h-3.5 rotate-45 bg-[#b85438] shadow-[0_0_12px_rgba(184,84,56,0.4)] shrink-0" />
+                <span className="font-semibold text-stone-900">
+                  THE UNIFIED ATRIUM CORE: 4 scattered vectors resolve into 1 central real-time truth.
+                </span>
+              </div>
+            </div>
 
-          {/* Interactive Before vs After Comparison Slider */}
-          <BeforeAfterSlider lang={lang} />
-
-          {/* Unification Visual Metaphor Callout */}
-          <div className="shift-callout mt-8 p-6 rounded-xl bg-stone-950/85 backdrop-blur-md border border-stone-800 flex items-center gap-3 text-xs font-mono text-stone-300 shadow-xl">
-            <div className="w-3 h-3 rotate-45 bg-[#e06b48] shadow-[0_0_12px_rgba(224,107,72,0.7)] shrink-0" />
-            <span>THE UNIFIED ATRIUM CORE: 4 scattered vectors resolve into 1 central truth.</span>
+            {/* Visuals on Right */}
+            <div className="lg:col-span-7 lg:order-2">
+              <ShiftCardSwiper points={content.shift.points} theme="light" />
+            </div>
           </div>
         </div>
       </section>
@@ -1238,29 +1275,31 @@ export default function PageShell({
       </div>
 
       {/* ------------------------------------------------------------- */}
+      {/* ------------------------------------------------------------- */}
       {/* SECTION 4 — HOW IT WORKS (3-4 Steps) */}
-      {/* Discrete triggered animation on enter (scrub: false) */}
+      {/* Background: Rich Terracotta (#8f371f) */}
       {/* ------------------------------------------------------------- */}
       <section
         id="section-how-it-works"
         ref={sectionHowRef}
-        className="relative z-20 w-full py-20 sm:py-28 px-6 sm:px-12 border-t border-stone-800/80 bg-stone-950 shadow-[0_-30px_70px_rgba(0,0,0,0.95)] flex items-center justify-center"
+        className="relative z-20 w-full py-24 sm:py-32 px-6 sm:px-12 border-t border-[#782c18] bg-[#8f371f] text-white shadow-[0_-30px_70px_rgba(0,0,0,0.5)] flex items-center justify-center"
       >
-        <div className="max-w-6xl mx-auto w-full">
-          <PinnedHowItWorks content={content} lang={lang} onOpenDemo={onOpenDemo} />
+        <div className="max-w-7xl mx-auto w-full">
+          <PinnedHowItWorks content={content} lang={lang} onOpenDemo={onOpenDemo} theme="terracotta" />
         </div>
       </section>
 
       {/* ------------------------------------------------------------- */}
       {/* SECTION 5 — BUILT FOR YOUR BUSINESS (Vertical Proof) */}
-      {/* Job: Prove this isn't generic software — shows vertical recognition */}
+      {/* Background: Crisp Off-White (#f7f6f2) */}
+      {/* 2-Column Side-by-Side: Category & Narrative Left, Console Right */}
       {/* ------------------------------------------------------------- */}
       <section
         id="section-verticals"
         ref={sectionVerticalsRef}
-        className="relative z-20 w-full py-24 sm:py-32 px-6 sm:px-12 border-t border-stone-800/80 bg-stone-950 shadow-[0_-30px_70px_rgba(0,0,0,0.95)]"
+        className="relative z-20 w-full py-24 sm:py-32 px-6 sm:px-12 border-t border-stone-200 bg-[#f7f6f2] text-stone-900 shadow-[0_-20px_50px_rgba(0,0,0,0.06)]"
       >
-        <div className="max-w-6xl mx-auto">
+        <div className="max-w-7xl mx-auto">
           <SectionHeader
             icon={Compass}
             tag={content.verticals.tag}
@@ -1268,22 +1307,23 @@ export default function PageShell({
             accent={content.verticals.headlineAccent}
             subline={content.verticals.subline}
             align="left"
-            className="verticals-header"
+            className="verticals-header mb-8"
             maskedHorizon={true}
+            theme="light"
             ctaButton={{ text: content.tryStartButton, onClick: onOpenDemo }}
           />
 
-          {/* Vertical Selector Tabs */}
-          <div className="vertical-tabs flex flex-wrap gap-2 border-b border-stone-800/80 pb-4 mb-8">
+          {/* Vertical Selector Tabs on Light Canvas */}
+          <div className="vertical-tabs flex flex-wrap gap-2.5 border-b border-stone-200 pb-5 mb-8">
             {content.verticals.items.map((item) => (
               <button
                 key={item.id}
                 type="button"
                 onClick={() => setActiveVertical(item.id)}
-                className={`vertical-tab-btn px-4 py-2.5 rounded-xl text-xs font-medium transition cursor-pointer font-mono ${
+                className={`vertical-tab-btn px-4 py-2.5 rounded-xl text-xs font-semibold transition cursor-pointer font-mono ${
                   activeVertical === item.id
-                    ? 'bg-[#b85438] text-white shadow-md'
-                    : 'bg-stone-900/70 text-stone-400 hover:text-stone-200 border border-stone-800'
+                    ? 'bg-[#b85438] text-white shadow-md shadow-[#b85438]/25'
+                    : 'bg-white text-stone-700 hover:text-stone-900 border border-stone-200 hover:border-stone-300 shadow-sm'
                 }`}
               >
                 {item.name}
@@ -1292,37 +1332,37 @@ export default function PageShell({
           </div>
 
           {/* Active Vertical Display Card */}
-          <div className="vertical-card grid grid-cols-1 lg:grid-cols-12 gap-8 p-6 sm:p-10 rounded-2xl bg-stone-950/85 backdrop-blur-md border border-stone-800 shadow-xl">
-            <div className="lg:col-span-6 flex flex-col justify-between">
+          <div className="vertical-card grid grid-cols-1 lg:grid-cols-12 gap-8 p-6 sm:p-10 rounded-3xl bg-white border border-stone-200 shadow-xl text-stone-900">
+            <div className="lg:col-span-6 flex flex-col justify-between space-y-6">
               <div>
-                <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded bg-stone-900 text-stone-300 font-mono text-[11px] mb-4">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#b85438]/10 text-[#b85438] font-mono text-[11px] font-semibold mb-4">
                   <span className="w-1.5 h-1.5 rounded-full bg-[#b85438]" />
                   <span>INDUSTRY SPECIFIC WORKFLOW</span>
                 </div>
 
-                <h3 className="text-2xl sm:text-3xl font-serif font-light text-stone-100 mb-4">
+                <h3 className="text-2xl sm:text-3xl font-editorial font-bold text-stone-950 mb-3 tracking-tight">
                   {currentVertical.name}
                 </h3>
 
-                <p className="text-sm text-stone-300 leading-relaxed mb-5 font-sans">
+                <p className="text-sm text-stone-600 leading-relaxed mb-5 font-sans">
                   {currentVertical.featureLine}
                 </p>
 
-                {/* Research / Operational Insight block (Honest founder-voice observation) */}
-                <div className="p-4 rounded-lg bg-stone-900/80 border border-stone-800/80 mb-5 text-xs text-stone-300 font-sans leading-relaxed">
-                  <div className="text-[10px] font-mono text-[#e06b48] uppercase tracking-wider mb-1.5 font-semibold">
+                {/* Research / Operational Insight block */}
+                <div className="p-4 rounded-xl bg-stone-50 border border-stone-200 mb-5 text-xs text-stone-700 font-sans leading-relaxed">
+                  <div className="text-[10px] font-mono text-[#b85438] uppercase tracking-wider mb-1.5 font-bold">
                     Field Operational Insight
                   </div>
-                  <p className="italic text-stone-300">
+                  <p className="italic text-stone-700">
                     "{currentVertical.operationalInsight}"
                   </p>
                 </div>
 
-                <div className="p-3.5 rounded-lg bg-black/60 border border-stone-800/80 mb-6">
-                  <div className="text-[10px] font-mono text-stone-500 uppercase tracking-wider mb-1">
+                <div className="p-3.5 rounded-xl bg-stone-100 border border-stone-200 mb-6">
+                  <div className="text-[10px] font-mono text-stone-500 uppercase tracking-wider mb-1 font-semibold">
                     PRIMARY OPERATIONAL FOCUS
                   </div>
-                  <div className="text-base font-semibold text-emerald-400 font-mono">
+                  <div className="text-base font-semibold text-[#b85438] font-mono">
                     {currentVertical.metricPreview}
                   </div>
                 </div>
@@ -1332,7 +1372,7 @@ export default function PageShell({
                 <button
                   type="button"
                   onClick={onOpenDemo}
-                  className="px-5 py-2.5 rounded-md bg-[#b85438] hover:bg-[#a24830] text-white text-xs font-mono font-semibold transition shadow-lg shadow-[#b85438]/20 flex items-center gap-2 cursor-pointer"
+                  className="px-5 py-2.5 rounded-md bg-[#b85438] hover:bg-[#a24830] text-white text-xs font-mono font-semibold transition shadow-md shadow-[#b85438]/20 flex items-center gap-2 cursor-pointer"
                 >
                   <Calendar className="w-3.5 h-3.5" />
                   <span>{content.tryStartButton}</span>
@@ -1341,11 +1381,11 @@ export default function PageShell({
             </div>
 
             {/* Simulated Live Floor Dashboard Mock */}
-            <div className="lg:col-span-6 rounded-lg bg-[#111318] border border-stone-800 p-6 flex flex-col justify-between">
+            <div className="lg:col-span-6 rounded-2xl bg-[#0e1017] border border-stone-800 p-6 flex flex-col justify-between shadow-2xl text-stone-200">
               <div>
                 <div className="flex items-center justify-between pb-3 mb-4 border-b border-stone-800/80 text-xs font-mono text-stone-400">
                   <span>ATRIUM FLOOR DESK // {currentVertical.name.toUpperCase()}</span>
-                  <span className="text-[#e06b48] flex items-center gap-1.5 text-[11px]">
+                  <span className="text-[#f28e72] flex items-center gap-1.5 text-[11px] font-semibold">
                     <span className="w-1.5 h-1.5 rounded-full bg-[#e06b48]" />
                     SAMPLE INTERFACE
                   </span>
@@ -1391,98 +1431,117 @@ export default function PageShell({
       </section>
 
       {/* ------------------------------------------------------------- */}
+      {/* ------------------------------------------------------------- */}
       {/* SECTION 6 — WHAT MAKES IT DIFFERENT (Differentiation) */}
-      {/* 3 differentiation pillars with concrete details */}
+      {/* Background: Deep Obsidian (#09090b) */}
+      {/* 2-Column Zigzag: 4 Pillar Cards Left, Narrative Right */}
       {/* ------------------------------------------------------------- */}
       <section
         id="section-differentiation"
         ref={sectionDiffRef}
-        className="relative z-20 w-full py-20 sm:py-28 px-6 sm:px-12 border-t border-stone-800/80 bg-[#0a0a0a] shadow-[0_-30px_70px_rgba(0,0,0,0.95)] flex items-center justify-center"
+        className="relative z-20 w-full py-24 sm:py-32 px-6 sm:px-12 border-t border-stone-800/80 bg-[#09090b] shadow-[0_-30px_70px_rgba(0,0,0,0.95)] flex items-center justify-center"
       >
-        <div className="max-w-6xl mx-auto w-full">
-          <SectionHeader
-            icon={ShieldCheck}
-            tag={content.differentiation.tag}
-            primary={content.differentiation.headlinePrimary}
-            accent={content.differentiation.headlineAccent}
-            subline={content.differentiation.subline}
-            align="left"
-            className="diff-header"
-            maskedHorizon={true}
-            ctaButton={{ text: content.tryStartButton, onClick: onOpenDemo }}
-          />
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {content.differentiation.pillars.map((pillar) => (
-              <div
-                key={pillar.number}
-                className="pillar-card p-6 sm:p-7 rounded-xl bg-stone-950/85 backdrop-blur-md border border-stone-800 hover:border-stone-700 transition-[border-color,background-color,box-shadow] duration-200 flex flex-col justify-between shadow-lg"
-              >
-                <div>
-                  <div className="text-xs font-mono text-[#b85438] font-bold mb-3">
-                    PILLAR {pillar.number}
+        <div className="max-w-7xl mx-auto w-full">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
+            {/* Left Column (Visual): 2x2 Grid of 4 Pillars */}
+            <div className="lg:col-span-7 lg:order-1 grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
+              {content.differentiation.pillars.map((pillar) => (
+                <div
+                  key={pillar.number}
+                  className="pillar-card p-6 sm:p-7 rounded-2xl bg-stone-950/90 backdrop-blur-md border border-stone-800 hover:border-[#b85438]/60 transition-all duration-200 flex flex-col justify-between shadow-xl"
+                >
+                  <div>
+                    <div className="text-xs font-mono text-[#e06b48] font-bold mb-3 flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#b85438]" />
+                      <span>PILLAR 0{pillar.number}</span>
+                    </div>
+                    <h3 className="text-base sm:text-lg font-semibold text-stone-100 mb-2 leading-snug">
+                      {pillar.title}
+                    </h3>
+                    <p className="text-xs text-stone-400 leading-relaxed mb-5 font-sans">
+                      {pillar.explanation}
+                    </p>
                   </div>
-                  <h3 className="text-lg font-semibold text-stone-100 mb-2.5 leading-snug">
-                    {pillar.title}
-                  </h3>
-                  <p className="text-xs text-stone-300 leading-relaxed mb-5 font-sans">
-                    {pillar.explanation}
-                  </p>
-                </div>
 
-                <div className="pt-3.5 border-t border-stone-800 text-[11px] font-mono text-stone-400 flex items-start gap-2">
-                  <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
-                  <span className="leading-snug">{pillar.proofDetail}</span>
+                  <div className="pt-3.5 border-t border-stone-800/80 text-[11px] font-mono text-stone-400 flex items-start gap-2">
+                    <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
+                    <span className="leading-snug">{pillar.proofDetail}</span>
+                  </div>
                 </div>
+              ))}
+            </div>
+
+            {/* Right Column (Text): SectionHeader & Architecture Narrative */}
+            <div className="lg:col-span-5 lg:order-2 space-y-6">
+              <SectionHeader
+                icon={ShieldCheck}
+                tag={content.differentiation.tag}
+                primary={content.differentiation.headlinePrimary}
+                accent={content.differentiation.headlineAccent}
+                subline={content.differentiation.subline}
+                align="left"
+                className="diff-header mb-0"
+                maskedHorizon={true}
+                theme="dark"
+                ctaButton={{ text: content.tryStartButton, onClick: onOpenDemo }}
+              />
+
+              <div className="p-5 rounded-2xl bg-stone-900/60 border border-stone-800 text-xs text-stone-300 font-sans leading-relaxed space-y-2.5">
+                <div className="text-[10px] font-mono text-[#e06b48] uppercase tracking-wider font-semibold">
+                  Zero Cloud Fragility
+                </div>
+                <p>
+                  Atrium treats the cloud as a synchronization convenience, never an existential operational requirement. When fiber cuts occur, your frontline registers stay at full speed without interruptions.
+                </p>
               </div>
-            ))}
+            </div>
           </div>
         </div>
       </section>
 
       {/* ------------------------------------------------------------- */}
       {/* SECTION 7 — DASHBOARD / KPI SHOWCASE */}
-      {/* Job: Sell the "feels like a real company" fantasy */}
+      {/* Background: Rich Terracotta (#963c24) */}
+      {/* 2-Column Side-by-Side: Summary & Controls Left, Console Right */}
       {/* ------------------------------------------------------------- */}
       <section
         id="section-dashboard"
         ref={sectionDashboardRef}
-        className="relative z-20 w-full py-20 sm:py-28 px-6 sm:px-12 border-t border-stone-800/80 bg-stone-950 shadow-[0_-30px_70px_rgba(0,0,0,0.95)] flex items-center justify-center"
+        className="relative z-20 w-full py-24 sm:py-32 px-6 sm:px-12 border-t border-[#7d2f1a] bg-[#963c24] text-white shadow-[0_-30px_70px_rgba(0,0,0,0.5)] flex items-center justify-center"
       >
-        <div className="max-w-6xl mx-auto w-full">
-          <SectionHeader
-            icon={Activity}
-            tag={content.dashboard.tag}
-            primary={content.dashboard.headlinePrimary}
-            accent={content.dashboard.headlineAccent}
-            subline={content.dashboard.subline}
-            align="left"
-            className="dashboard-header"
-            maskedHorizon={true}
-            ctaButton={{ text: content.tryStartButton, onClick: onOpenDemo }}
-          />
+        <div className="max-w-7xl mx-auto w-full">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
+            {/* Left Column: Narrative & Filters */}
+            <div className="lg:col-span-4 space-y-6 lg:sticky lg:top-24">
+              <SectionHeader
+                icon={Activity}
+                tag={content.dashboard.tag}
+                primary={content.dashboard.headlinePrimary}
+                accent={content.dashboard.headlineAccent}
+                subline={content.dashboard.subline}
+                align="left"
+                className="dashboard-header mb-0"
+                maskedHorizon={true}
+                theme="terracotta"
+                ctaButton={{ text: content.tryStartButton, onClick: onOpenDemo }}
+              />
 
-          {/* Large Interactive KPI Executive Dashboard Mockup */}
-          <div className="rounded-2xl bg-black/90 backdrop-blur-md border border-stone-800 p-6 sm:p-8 shadow-2xl overflow-hidden">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-6 mb-6 border-b border-stone-800/80 gap-4">
-              <div>
-                <div className="text-base font-semibold text-stone-100 font-mono flex items-center gap-2">
-                  <span>EXECUTIVE SUMMARY // CONSOLIDATED NETWORK</span>
-                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-stone-900 text-[#f28e72] font-semibold border border-stone-800">
-                    SAMPLE DATA
-                  </span>
+              <div className="p-5 rounded-2xl bg-black/25 border border-white/10 text-xs text-stone-100 font-sans leading-relaxed space-y-2">
+                <div className="text-[10px] font-mono text-amber-200 uppercase tracking-wider font-semibold">
+                  Multi-Branch Telemetry
                 </div>
-                <div className="text-xs text-stone-400 font-sans">
+                <p>
                   {content.dashboard.caption}
-                </div>
+                </p>
               </div>
 
-              <div className="flex items-center gap-1.5 bg-stone-900 border border-stone-800 rounded p-1 text-xs font-mono">
+              {/* Filter Tabs on Terracotta */}
+              <div className="flex items-center gap-1.5 bg-black/30 border border-white/10 rounded-xl p-1 text-xs font-mono">
                 <button
                   type="button"
                   onClick={() => setActiveKpiFilter('all')}
-                  className={`px-2.5 py-1 rounded transition cursor-pointer ${
-                    activeKpiFilter === 'all' ? 'bg-stone-800 text-white' : 'text-stone-400 hover:text-stone-200'
+                  className={`px-3 py-1.5 rounded-lg transition cursor-pointer text-xs ${
+                    activeKpiFilter === 'all' ? 'bg-white text-stone-950 font-bold shadow' : 'text-stone-200 hover:text-white'
                   }`}
                 >
                   All Vitals
@@ -1490,8 +1549,8 @@ export default function PageShell({
                 <button
                   type="button"
                   onClick={() => setActiveKpiFilter('sales')}
-                  className={`px-2.5 py-1 rounded transition cursor-pointer ${
-                    activeKpiFilter === 'sales' ? 'bg-stone-800 text-white' : 'text-stone-400 hover:text-stone-200'
+                  className={`px-3 py-1.5 rounded-lg transition cursor-pointer text-xs ${
+                    activeKpiFilter === 'sales' ? 'bg-white text-stone-950 font-bold shadow' : 'text-stone-200 hover:text-white'
                   }`}
                 >
                   Cash &amp; Sales
@@ -1499,8 +1558,8 @@ export default function PageShell({
                 <button
                   type="button"
                   onClick={() => setActiveKpiFilter('staff')}
-                  className={`px-2.5 py-1 rounded transition cursor-pointer ${
-                    activeKpiFilter === 'staff' ? 'bg-stone-800 text-white' : 'text-stone-400 hover:text-stone-200'
+                  className={`px-3 py-1.5 rounded-lg transition cursor-pointer text-xs ${
+                    activeKpiFilter === 'staff' ? 'bg-white text-stone-950 font-bold shadow' : 'text-stone-200 hover:text-white'
                   }`}
                 >
                   Staff Comms
@@ -1508,225 +1567,341 @@ export default function PageShell({
               </div>
             </div>
 
-            {/* KPI Cards Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-              <SpotlightCard className="dashboard-card p-5">
-                <div className="text-xs font-mono text-stone-500 mb-1">TODAY&apos;S NET REVENUE (SAMPLE)</div>
-                <div className="text-2xl font-bold font-mono text-stone-100">
-                  <AnimatedCounter end={240700} duration={1600} /> <span className="text-xs font-normal text-stone-400">DZD</span>
+            {/* Right Column: Large Interactive KPI Executive Dashboard Mockup */}
+            <div className="lg:col-span-8 rounded-3xl bg-stone-950/95 backdrop-blur-md border border-white/10 p-6 sm:p-8 shadow-2xl overflow-hidden">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-6 mb-6 border-b border-stone-800/80 gap-4">
+                <div>
+                  <div className="text-base font-semibold text-stone-100 font-mono flex items-center gap-2">
+                    <span>EXECUTIVE SUMMARY // CONSOLIDATED NETWORK</span>
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-stone-900 text-[#f28e72] font-semibold border border-stone-800">
+                      SAMPLE DATA
+                    </span>
+                  </div>
+                  <div className="text-xs text-stone-400 font-sans mt-1">
+                    Live reconciled snapshot from edge SQLite databases
+                  </div>
                 </div>
-                <div className="text-[11px] text-emerald-400 font-mono mt-2">
-                  ↑ +18.4% vs yesterday
-                </div>
-              </SpotlightCard>
-
-              <SpotlightCard className="dashboard-card p-5">
-                <div className="text-xs font-mono text-stone-500 mb-1">CASH IN TILL (SAMPLE)</div>
-                <div className="text-2xl font-bold font-mono text-stone-100">
-                  <AnimatedCounter end={86400} duration={1400} /> <span className="text-xs font-normal text-stone-400">DZD</span>
-                </div>
-                <div className="text-[11px] text-stone-400 font-mono mt-2">
-                  Zero discrepancy across 3 registers
-                </div>
-              </SpotlightCard>
-
-              <SpotlightCard className="dashboard-card p-5">
-                <div className="text-xs font-mono text-stone-500 mb-1">ACTIVE CUSTOMERS ON FLOOR (SAMPLE)</div>
-                <div className="text-2xl font-bold font-mono text-[#f28e72]">
-                  <AnimatedCounter end={54} duration={1200} /> <span className="text-xs font-normal text-stone-400">people</span>
-                </div>
-                <div className="text-[11px] text-stone-400 font-mono mt-2">
-                  Peak window: 17:00 – 20:30
-                </div>
-              </SpotlightCard>
-
-              <SpotlightCard className="dashboard-card p-5">
-                <div className="text-xs font-mono text-stone-500 mb-1">AUTOMATED PAYROLL OWED (SAMPLE)</div>
-                <div className="text-2xl font-bold font-mono text-stone-100">
-                  <AnimatedCounter end={34200} duration={1500} /> <span className="text-xs font-normal text-stone-400">DZD</span>
-                </div>
-                <div className="text-[11px] text-[#e06b48] font-mono mt-2">
-                  Tallied in real-time from services
-                </div>
-              </SpotlightCard>
-            </div>
-
-            {/* Consolidated Location Breakdown Table */}
-            <div className="rounded-lg bg-stone-950/60 border border-stone-800/80 p-4 font-mono text-xs overflow-x-auto">
-              <div className="text-[11px] text-stone-500 uppercase tracking-wider mb-3">
-                Live Branch Telemetry (Sample Data)
               </div>
-              <table className="w-full text-left min-w-[500px]">
-                <thead>
-                  <tr className="border-b border-stone-800 text-stone-500 text-[10px]">
-                    <th className="pb-2">BRANCH LOCATION</th>
-                    <th className="pb-2">FLOOR STATUS</th>
-                    <th className="pb-2">NETWORK SYNC</th>
-                    <th className="pb-2 text-right">DAILY GROSS</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-stone-900 text-stone-300">
-                  <tr>
-                    <td className="py-2.5 font-semibold text-stone-100">Branch 01 — Algiers Center</td>
-                    <td className="py-2.5 text-emerald-400">● 28 Active Clients</td>
-                    <td className="py-2.5 text-stone-400">Synchronized (1s ago)</td>
-                    <td className="py-2.5 text-right font-mono font-bold">142,500 DZD</td>
-                  </tr>
-                  <tr>
-                    <td className="py-2.5 font-semibold text-stone-100">Branch 02 — Oran Waterfront</td>
-                    <td className="py-2.5 text-emerald-400">● 19 Active Clients</td>
-                    <td className="py-2.5 text-stone-400">Synchronized (3s ago)</td>
-                    <td className="py-2.5 text-right font-mono font-bold">76,200 DZD</td>
-                  </tr>
-                  <tr>
-                    <td className="py-2.5 font-semibold text-stone-100">Branch 03 — Blida Express</td>
-                    <td className="py-2.5 text-amber-400">● 7 Active Clients</td>
-                    <td className="py-2.5 text-stone-400">Offline SQLite Buffer (Ready)</td>
-                    <td className="py-2.5 text-right font-mono font-bold">22,000 DZD</td>
-                  </tr>
-                </tbody>
-              </table>
+
+              {/* KPI Cards Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+                <SpotlightCard className="dashboard-card p-5 bg-stone-900/80 border-stone-800">
+                  <div className="text-xs font-mono text-stone-400 mb-1">TODAY&apos;S NET REVENUE (SAMPLE)</div>
+                  <div className="text-2xl font-bold font-mono text-stone-100">
+                    <AnimatedCounter end={240700} duration={1600} /> <span className="text-xs font-normal text-stone-400">DZD</span>
+                  </div>
+                  <div className="text-[11px] text-emerald-400 font-mono mt-2">
+                    ↑ +18.4% vs yesterday
+                  </div>
+                </SpotlightCard>
+
+                <SpotlightCard className="dashboard-card p-5 bg-stone-900/80 border-stone-800">
+                  <div className="text-xs font-mono text-stone-400 mb-1">CASH IN TILL (SAMPLE)</div>
+                  <div className="text-2xl font-bold font-mono text-stone-100">
+                    <AnimatedCounter end={86400} duration={1400} /> <span className="text-xs font-normal text-stone-400">DZD</span>
+                  </div>
+                  <div className="text-[11px] text-stone-300 font-mono mt-2">
+                    Zero discrepancy across 3 registers
+                  </div>
+                </SpotlightCard>
+
+                <SpotlightCard className="dashboard-card p-5 bg-stone-900/80 border-stone-800">
+                  <div className="text-xs font-mono text-stone-400 mb-1">ACTIVE CUSTOMERS ON FLOOR (SAMPLE)</div>
+                  <div className="text-2xl font-bold font-mono text-[#f28e72]">
+                    <AnimatedCounter end={54} duration={1200} /> <span className="text-xs font-normal text-stone-400">people</span>
+                  </div>
+                  <div className="text-[11px] text-stone-300 font-mono mt-2">
+                    Peak window: 17:00 – 20:30
+                  </div>
+                </SpotlightCard>
+
+                <SpotlightCard className="dashboard-card p-5 bg-stone-900/80 border-stone-800">
+                  <div className="text-xs font-mono text-stone-400 mb-1">AUTOMATED PAYROLL OWED (SAMPLE)</div>
+                  <div className="text-2xl font-bold font-mono text-stone-100">
+                    <AnimatedCounter end={34200} duration={1500} /> <span className="text-xs font-normal text-stone-400">DZD</span>
+                  </div>
+                  <div className="text-[11px] text-[#e06b48] font-mono mt-2">
+                    Tallied in real-time from services
+                  </div>
+                </SpotlightCard>
+              </div>
+
+              {/* Consolidated Location Breakdown Table */}
+              <div className="rounded-xl bg-stone-900/60 border border-stone-800/80 p-4 font-mono text-xs overflow-x-auto">
+                <div className="text-[11px] text-stone-400 uppercase tracking-wider mb-3">
+                  Live Branch Telemetry (Sample Data)
+                </div>
+                <table className="w-full text-left min-w-[500px]">
+                  <thead>
+                    <tr className="border-b border-stone-800 text-stone-400 text-[10px]">
+                      <th className="pb-2">BRANCH LOCATION</th>
+                      <th className="pb-2">FLOOR STATUS</th>
+                      <th className="pb-2">NETWORK SYNC</th>
+                      <th className="pb-2 text-right">DAILY GROSS</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-stone-800 text-stone-300">
+                    <tr>
+                      <td className="py-2.5 font-semibold text-stone-100">Branch 01 — Algiers Center</td>
+                      <td className="py-2.5 text-emerald-400">● 28 Active Clients</td>
+                      <td className="py-2.5 text-stone-400">Synchronized (1s ago)</td>
+                      <td className="py-2.5 text-right font-mono font-bold">142,500 DZD</td>
+                    </tr>
+                    <tr>
+                      <td className="py-2.5 font-semibold text-stone-100">Branch 02 — Oran Waterfront</td>
+                      <td className="py-2.5 text-emerald-400">● 19 Active Clients</td>
+                      <td className="py-2.5 text-stone-400">Synchronized (3s ago)</td>
+                      <td className="py-2.5 text-right font-mono font-bold">76,200 DZD</td>
+                    </tr>
+                    <tr>
+                      <td className="py-2.5 font-semibold text-stone-100">Branch 03 — Blida Express</td>
+                      <td className="py-2.5 text-amber-400">● 7 Active Clients</td>
+                      <td className="py-2.5 text-stone-400">Offline SQLite Buffer (Ready)</td>
+                      <td className="py-2.5 text-right font-mono font-bold">22,000 DZD</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         </div>
       </section>
 
       {/* ------------------------------------------------------------- */}
-      {/* SECTION 8 — PRICING */}
-      {/* Job: Remove ambiguity, reduce decision friction */}
+      {/* SECTION 8.5 — BEFORE & AFTER COMPARISON SLIDER */}
+      {/* Background: Crisp Off-White (#faf9f5) */}
+      {/* 2-Column Side-by-Side: Interactive Slider Left, Audit Checklist Right */}
+      {/* ------------------------------------------------------------- */}
+      <section
+        id="section-slider"
+        className="relative z-20 w-full py-24 sm:py-32 px-6 sm:px-12 border-t border-stone-200 bg-[#faf9f5] text-stone-900 shadow-inner flex items-center justify-center"
+      >
+        <div className="max-w-7xl mx-auto w-full">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
+            {/* Left Column: Interactive Before/After Split-Screen Lens */}
+            <div className="lg:col-span-7">
+              <BeforeAfterSlider lang={lang} theme="light" />
+            </div>
+
+            {/* Right Column: Narrative & Transformation Checklist */}
+            <div className="lg:col-span-5 space-y-6">
+              <SectionHeader
+                icon={Sliders}
+                tag="SYSTEM TRANSFORMATION"
+                primary="Before & After"
+                accent="Operational Calm"
+                subline="Move the interactive divider to witness the tangible difference between chaotic point-of-sale friction and unified frontline serenity."
+                align="left"
+                className="slider-header mb-0"
+                maskedHorizon={true}
+                theme="light"
+                ctaButton={{ text: content.tryStartButton, onClick: onOpenDemo }}
+              />
+
+              <div className="space-y-3.5 pt-2">
+                <div className="p-4 rounded-xl bg-white border border-stone-200 shadow-sm flex items-start gap-3.5">
+                  <div className="w-8 h-8 rounded-lg bg-rose-50 border border-rose-200/80 text-rose-600 flex items-center justify-center shrink-0 mt-0.5">
+                    <WifiOff className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-semibold text-stone-900 font-mono mb-1">
+                      Zero Register Blind Spots
+                    </div>
+                    <p className="text-xs text-stone-600 leading-relaxed font-sans">
+                      Never stall a client queue due to intermittent Wi-Fi or regional DNS drops. Edge SQLite buffers persist every basket locally.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-xl bg-white border border-stone-200 shadow-sm flex items-start gap-3.5">
+                  <div className="w-8 h-8 rounded-lg bg-amber-50 border border-amber-200/80 text-amber-700 flex items-center justify-center shrink-0 mt-0.5">
+                    <Clock className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-semibold text-stone-900 font-mono mb-1">
+                      Automated Shift Reconciliation
+                    </div>
+                    <p className="text-xs text-stone-600 leading-relaxed font-sans">
+                      Eliminate paper tally sheets and end-of-day discrepancy panic. Real-time register handoffs reconcile cash in under 90 seconds.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-xl bg-white border border-stone-200 shadow-sm flex items-start gap-3.5">
+                  <div className="w-8 h-8 rounded-lg bg-emerald-50 border border-emerald-200/80 text-emerald-700 flex items-center justify-center shrink-0 mt-0.5">
+                    <Check className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-semibold text-stone-900 font-mono mb-1">
+                      Instant Multi-Branch Visibility
+                    </div>
+                    <p className="text-xs text-stone-600 leading-relaxed font-sans">
+                      Command revenue, inventory turnover, and staff commissions across all locations simultaneously from an executive telemetry view.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ------------------------------------------------------------- */}
+      {/* SECTION 9 — PRICING */}
+      {/* Background: Rich Terracotta (#963c24) */}
+      {/* 2-Column Side-by-Side: Summary & Guarantee Left, 3 Tiers Right */}
       {/* ------------------------------------------------------------- */}
       <section
         id="section-pricing"
         ref={sectionPricingRef}
-        className="relative z-20 w-full py-24 sm:py-32 px-6 sm:px-12 border-t border-stone-800/80 bg-stone-950 shadow-[0_-30px_70px_rgba(0,0,0,0.95)]"
+        className="relative z-20 w-full py-24 sm:py-32 px-6 sm:px-12 border-t border-[#7d2f1a] bg-[#963c24] text-white shadow-[0_-30px_70px_rgba(0,0,0,0.5)]"
       >
-        <div className="max-w-6xl mx-auto">
-          <SectionHeader
-            icon={CreditCard}
-            tag={content.pricing.tag}
-            primary={content.pricing.headlinePrimary}
-            accent={content.pricing.headlineAccent}
-            subline={content.pricing.subline}
-            align="center"
-            className="pricing-header"
-            maskedHorizon={true}
-            ctaButton={{ text: content.tryStartButton, onClick: onOpenDemo }}
-          />
+        <div className="max-w-7xl mx-auto">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
+            {/* Left Column: Narrative & Zero-Risk Reversal Banner */}
+            <div className="lg:col-span-4 lg:sticky lg:top-24 space-y-6">
+              <SectionHeader
+                icon={CreditCard}
+                tag={content.pricing.tag}
+                primary={content.pricing.headlinePrimary}
+                accent={content.pricing.headlineAccent}
+                subline={content.pricing.subline}
+                align="left"
+                className="pricing-header mb-0"
+                maskedHorizon={true}
+                theme="terracotta"
+                ctaButton={{ text: content.tryStartButton, onClick: onOpenDemo }}
+              />
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            {content.pricing.tiers.map((tier, idx) => (
-              <SpotlightCard
-                key={idx}
-                className={`pricing-card p-8 rounded-2xl flex flex-col justify-between transition-[border-color,background-color,box-shadow] duration-200 ${
-                  tier.highlighted
-                    ? 'border-[#e06b48] shadow-2xl relative'
-                    : 'border-stone-800 shadow-xl'
-                }`}
-                spotlightColor={tier.highlighted ? 'rgba(224, 107, 72, 0.25)' : 'rgba(224, 107, 72, 0.12)'}
-                borderColor={tier.highlighted ? 'rgba(224, 107, 72, 0.7)' : 'rgba(224, 107, 72, 0.35)'}
-              >
-                {tier.highlighted && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-0.5 rounded-full bg-[#b85438] text-white text-[10px] font-mono uppercase tracking-widest font-bold z-30">
-                    MOST POPULAR
-                  </div>
-                )}
-
-                <div>
-                  <div className="text-xs font-mono text-stone-400 uppercase tracking-wider mb-2">
-                    {tier.name}
-                  </div>
-                  <div className="flex items-baseline gap-1 mb-3">
-                    <span className="text-3xl font-bold font-mono text-stone-100">{tier.price}</span>
-                    <span className="text-xs font-mono text-stone-500">/ {tier.period}</span>
-                  </div>
-                  <p className="text-xs text-stone-400 leading-relaxed mb-6 font-sans min-h-[36px]">
-                    {tier.desc}
-                  </p>
-
-                  <div className="space-y-3 pt-6 border-t border-stone-800/80 mb-8">
-                    {tier.features.map((feat, fidx) => (
-                      <div key={fidx} className="flex items-start gap-2.5 text-xs text-stone-300">
-                        <Check className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-                        <span>{feat}</span>
-                      </div>
-                    ))}
-                  </div>
+              {/* Risk Reversal Assurance Banner */}
+              <div className="p-6 rounded-2xl bg-black/30 border border-white/10 text-stone-100 space-y-3 shadow-xl">
+                <div className="inline-flex items-center gap-2 text-xs font-mono text-emerald-300 font-semibold uppercase tracking-wider">
+                  <ShieldCheck className="w-4 h-4" />
+                  <span>ZERO RISK GUARANTEE</span>
                 </div>
-
-                <button
-                  type="button"
-                  onClick={onOpenDemo}
-                  className={`w-full py-3 px-4 rounded-lg font-mono text-xs font-semibold tracking-wider transition cursor-pointer ${
-                    tier.highlighted
-                      ? 'bg-[#b85438] hover:bg-[#a24830] text-white shadow-lg shadow-[#b85438]/25'
-                      : 'bg-stone-900 hover:bg-stone-800 text-stone-200 border border-stone-700'
-                  }`}
-                >
-                  {tier.ctaText}
-                </button>
-              </SpotlightCard>
-            ))}
-          </div>
-
-          {/* Risk Reversal Assurance Banner */}
-          <div className="p-6 rounded-lg bg-stone-950/90 border border-stone-800/80 text-center max-w-3xl mx-auto space-y-2">
-            <div className="inline-flex items-center gap-2 text-xs font-mono text-emerald-400 font-medium">
-              <ShieldCheck className="w-4 h-4" />
-              <span>ZERO RISK GUARANTEE</span>
+                <p className="text-xs sm:text-sm text-stone-100 font-sans leading-relaxed">
+                  {content.pricing.riskReversal}
+                </p>
+                <div className="pt-2 border-t border-white/10 text-[11px] font-mono text-stone-300/80">
+                  {content.pricing.billingNote}
+                </div>
+              </div>
             </div>
-            <p className="text-sm text-stone-200 font-medium font-sans">
-              {content.pricing.riskReversal}
-            </p>
-            <p className="text-xs text-stone-500 font-mono">
-              {content.pricing.billingNote}
-            </p>
+
+            {/* Right Column: 3 Pricing Tiers on Dark Obsidian Glass */}
+            <div className="lg:col-span-8 grid grid-cols-1 md:grid-cols-3 gap-5">
+              {content.pricing.tiers.map((tier, idx) => (
+                <SpotlightCard
+                  key={idx}
+                  className={`pricing-card p-6 sm:p-7 rounded-2xl flex flex-col justify-between transition-all duration-200 bg-stone-950/90 backdrop-blur-md ${
+                    tier.highlighted
+                      ? 'border-amber-400/90 ring-2 ring-amber-400/30 shadow-2xl relative'
+                      : 'border-white/10 shadow-xl'
+                  }`}
+                  spotlightColor={tier.highlighted ? 'rgba(251, 191, 36, 0.2)' : 'rgba(255, 255, 255, 0.08)'}
+                  borderColor={tier.highlighted ? 'rgba(251, 191, 36, 0.6)' : 'rgba(255, 255, 255, 0.15)'}
+                >
+                  {tier.highlighted && (
+                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-0.5 rounded-full bg-[#b85438] text-white text-[10px] font-mono uppercase tracking-widest font-bold z-30 shadow-md">
+                      MOST POPULAR
+                    </div>
+                  )}
+
+                  <div>
+                    <div className="text-xs font-mono text-stone-400 uppercase tracking-wider mb-2 font-semibold">
+                      {tier.name}
+                    </div>
+                    <div className="flex items-baseline gap-1 mb-3">
+                      <span className="text-2xl sm:text-3xl font-bold font-mono text-stone-100">{tier.price}</span>
+                      <span className="text-xs font-mono text-stone-400">/ {tier.period}</span>
+                    </div>
+                    <p className="text-xs text-stone-400 leading-relaxed mb-6 font-sans min-h-[48px]">
+                      {tier.desc}
+                    </p>
+
+                    <div className="space-y-3 pt-5 border-t border-stone-800/80 mb-6">
+                      {tier.features.map((feat, fidx) => (
+                        <div key={fidx} className="flex items-start gap-2.5 text-xs text-stone-300">
+                          <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
+                          <span>{feat}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={onOpenDemo}
+                    className={`w-full py-2.5 px-4 rounded-lg font-mono text-xs font-semibold tracking-wider transition cursor-pointer ${
+                      tier.highlighted
+                        ? 'bg-[#b85438] hover:bg-[#a24830] text-white shadow-lg shadow-[#b85438]/30'
+                        : 'bg-stone-900 hover:bg-stone-800 text-stone-200 border border-stone-700'
+                    }`}
+                  >
+                    {tier.ctaText}
+                  </button>
+                </SpotlightCard>
+              ))}
+            </div>
           </div>
         </div>
       </section>
 
       {/* ------------------------------------------------------------- */}
-      {/* SECTION 9 — CREDIBILITY (Proven Foundation) */}
-      {/* Real founder-voice credibility without fabricated quotes */}
+      {/* SECTION 10 — CREDIBILITY (Proven Foundation) */}
+      {/* Background: Deep Obsidian (#09090b) */}
+      {/* 2-Column Zigzag: Narrative Left, Founder Statement Right */}
       {/* ------------------------------------------------------------- */}
       <section
         id="section-proof"
         ref={sectionProofRef}
-        className="relative z-20 w-full py-20 sm:py-28 px-6 sm:px-12 border-t border-stone-800/80 bg-[#09090b] shadow-[0_-30px_70px_rgba(0,0,0,0.95)] flex items-center justify-center"
+        className="relative z-20 w-full py-24 sm:py-32 px-6 sm:px-12 border-t border-stone-800/80 bg-[#09090b] shadow-[0_-30px_70px_rgba(0,0,0,0.95)] flex items-center justify-center"
       >
-        <div className="max-w-4xl mx-auto text-center w-full">
-          <SectionHeader
-            icon={Building}
-            tag={content.credibility.tag}
-            primary={content.credibility.headlinePrimary}
-            accent={content.credibility.headlineAccent}
-            align="center"
-            className="credibility-header mb-8"
-            maskedHorizon={true}
-            ctaButton={{ text: content.tryStartButton, onClick: onOpenDemo }}
-          />
+        <div className="max-w-7xl mx-auto w-full">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
+            {/* Left Column: Section Header & Verified Badges */}
+            <div className="lg:col-span-5 space-y-6">
+              <SectionHeader
+                icon={Building}
+                tag={content.credibility.tag}
+                primary={content.credibility.headlinePrimary}
+                accent={content.credibility.headlineAccent}
+                subline="Designed and architected directly on frontline commerce floors with zero synthetic filler."
+                align="left"
+                className="credibility-header mb-0"
+                maskedHorizon={true}
+                theme="dark"
+                ctaButton={{ text: content.tryStartButton, onClick: onOpenDemo }}
+              />
 
-          <div className="credibility-card p-8 sm:p-12 rounded-2xl bg-stone-950/90 backdrop-blur-md border border-stone-800 text-stone-200 text-left font-sans text-sm sm:text-base leading-relaxed shadow-2xl max-w-3xl mx-auto mb-8 space-y-4">
-            <p className="text-stone-200 font-normal">
-              {content.credibility.leadSentence}
-            </p>
-            <p className="text-stone-300 font-normal">
-              {content.credibility.researchSentence}
-            </p>
-            <p className="text-stone-100 font-medium pt-2 border-t border-stone-800/80">
-              {content.credibility.conclusionSentence}
-            </p>
-          </div>
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-stone-900/90 border border-stone-800 text-stone-400 font-mono text-xs">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#b85438]" />
+                <span>{content.credibility.locationBadge}</span>
+              </div>
+            </div>
 
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-stone-900/90 border border-stone-800 text-stone-400 font-mono text-xs">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#b85438]" />
-            <span>{content.credibility.locationBadge}</span>
+            {/* Right Column: Founder Statement Card */}
+            <div className="lg:col-span-7">
+              <div className="credibility-card p-8 sm:p-10 rounded-2xl bg-stone-950/90 backdrop-blur-md border border-stone-800 text-stone-200 text-left font-sans text-sm sm:text-base leading-relaxed shadow-2xl space-y-4">
+                <p className="text-stone-200 font-normal">
+                  {content.credibility.leadSentence}
+                </p>
+                <p className="text-stone-300 font-normal">
+                  {content.credibility.researchSentence}
+                </p>
+                <p className="text-stone-100 font-medium pt-3 border-t border-stone-800/80">
+                  {content.credibility.conclusionSentence}
+                </p>
+              </div>
+            </div>
           </div>
         </div>
       </section>
 
       {/* ------------------------------------------------------------- */}
-      {/* SECTION 10 — FAQ (QUESTIONS & ANSWERS) */}
-      {/* Job: Remove last hesitation before trial/signup */}
+      {/* SECTION 11 — FAQ (QUESTIONS & ANSWERS) */}
+      {/* Background: Crisp Off-White (#fbfbfa) via theme="light" */}
+      {/* 2-Column: Sticky Support Left, Questions Right */}
       {/* ------------------------------------------------------------- */}
       <FaqSection
         ref={sectionFaqRef}
@@ -1734,32 +1909,73 @@ export default function PageShell({
         lang={lang}
         phone={content.footer.phone}
         onOpenDemo={onOpenDemo}
+        theme="light"
       />
 
       {/* ------------------------------------------------------------- */}
-      {/* SECTION 11 — FINAL CTA */}
-      {/* Job: One last, low-friction push — distraction-free */}
+      {/* SECTION 12 — FINAL CTA */}
+      {/* Background: Rich Terracotta (#8f371f) */}
+      {/* 2-Column Side-by-Side: Heading Left, Quick Booking Right */}
       {/* ------------------------------------------------------------- */}
       <section
         id="section-final-cta"
         ref={sectionFinalCtaRef}
-        className="relative z-20 w-full min-h-[80vh] py-20 sm:py-28 px-6 sm:px-12 border-t border-stone-800/80 bg-black shadow-[0_-30px_70px_rgba(0,0,0,0.95)] flex items-center justify-center text-center"
+        className="relative z-20 w-full min-h-[60vh] py-24 sm:py-32 px-6 sm:px-12 border-t border-[#782c18] bg-[#8f371f] text-white shadow-[0_-30px_70px_rgba(0,0,0,0.6)] flex items-center justify-center"
       >
-        <div className="max-w-2xl mx-auto space-y-6 w-full">
-          <SectionHeader
-            icon={Calendar}
-            tag={content.finalCta.tag}
-            primary={content.finalCta.headlinePrimary}
-            accent={content.finalCta.headlineAccent}
-            subline={content.finalCta.subline}
-            align="center"
-            className="final-cta-header mb-4"
-            maskedHorizon={true}
-            ctaButton={{ text: content.finalCta.ctaButton, onClick: onOpenDemo }}
-          />
+        <div className="max-w-6xl mx-auto w-full">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
+            {/* Left Column: Heading & Subline */}
+            <div className="lg:col-span-6 space-y-4 text-left">
+              <SectionHeader
+                icon={Calendar}
+                tag={content.finalCta.tag}
+                primary={content.finalCta.headlinePrimary}
+                accent={content.finalCta.headlineAccent}
+                subline={content.finalCta.subline}
+                align="left"
+                className="final-cta-header mb-0"
+                maskedHorizon={true}
+                theme="terracotta"
+                ctaButton={{ text: content.finalCta.ctaButton, onClick: onOpenDemo }}
+              />
+            </div>
 
-          <div className="text-[11px] font-mono text-stone-500 pt-1">
-            Instant scheduling • Response within 2 business hours • WhatsApp direct
+            {/* Right Column: Direct Booking & Fast Response Box */}
+            <div className="lg:col-span-6 p-6 sm:p-8 rounded-3xl bg-black/35 backdrop-blur-md border border-white/10 shadow-2xl space-y-4 text-stone-100">
+              <div className="flex items-center justify-between pb-3 border-b border-white/10 text-xs font-mono text-stone-300">
+                <span>CONCIERGE ONBOARDING</span>
+                <span className="text-emerald-300 font-semibold flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  SLOTS AVAILABLE
+                </span>
+              </div>
+
+              <div className="space-y-2.5 text-xs font-sans text-stone-200">
+                <div className="flex items-center gap-2">
+                  <Check className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span>White-glove data migration from legacy spreadsheets or old POS systems</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Check className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span>On-site staff training and thermal printer configuration</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Check className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span>Dedicated direct WhatsApp channel with senior engineering team</span>
+                </div>
+              </div>
+
+              <div className="pt-3 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-3 text-[11px] font-mono text-stone-300">
+                <span>Response within 2 business hours</span>
+                <button
+                  type="button"
+                  onClick={onOpenDemo}
+                  className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-white hover:bg-stone-100 text-stone-950 font-bold transition shadow cursor-pointer text-xs"
+                >
+                  {content.finalCta.ctaButton}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </section>

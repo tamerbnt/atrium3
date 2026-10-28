@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { ChevronLeft, ChevronRight, ArrowRight, Pause, Layers } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ArrowRight, Pause, Play, Layers, Activity, ShieldCheck, CheckCircle2 } from 'lucide-react';
 import { CategoryProofItem } from '../content/copy';
 import { SpotlightCard } from './SpotlightCard';
 
@@ -7,16 +7,163 @@ interface CategoryCardSwiperProps {
   categories: CategoryProofItem[];
   onSelectCategory: (categoryId: string) => void;
   autoPlayInterval?: number;
+  theme?: 'dark' | 'terracotta' | 'light';
 }
+
+// Domain-specific workflow stages and telemetry enrichments for the taller showcase card
+const DOMAIN_ENRICHMENTS: Record<
+  string,
+  {
+    stages: Array<{ name: string; detail: string }>;
+    telemetry: Array<{ label: string; value: string }>;
+  }
+> = {
+  gym: {
+    stages: [
+      { name: 'NFC Turnstile Edge Check-In', detail: 'Local reader authorization in < 25ms, zero cloud delay.' },
+      { name: 'Automated Trainer Quotas', detail: 'Class attendance tallies commission tiers in real-time.' },
+      { name: 'Local SQLite Buffer', detail: 'Pass renewals saved offline if broadband cuts during peak.' },
+    ],
+    telemetry: [
+      { label: 'Edge Check-in Speed', value: '18ms' },
+      { label: 'Offline Resiliency', value: '100% Guaranteed' },
+    ],
+  },
+  salon: {
+    stages: [
+      { name: 'Chair & Stylist Scheduling', detail: 'Dynamic booking grid prevents double-booked suites.' },
+      { name: 'Instant Tip & Service Split', detail: 'Automated commission calculation per completed treatment.' },
+      { name: 'Client Preference Recall', detail: 'Color formula notes and treatment logs available instantly.' },
+    ],
+    telemetry: [
+      { label: 'Handoff Reconciliation', value: '45 sec' },
+      { label: 'Commission Accuracy', value: '100.0%' },
+    ],
+  },
+  restaurant: {
+    stages: [
+      { name: 'Edge Kitchen Display (KDS)', detail: 'Direct LAN station routing without external internet reliance.' },
+      { name: 'Fast Table Splitting & Tills', detail: 'Multiple payment methods split across seated covers seamlessly.' },
+      { name: 'Recipe Inventory Depletion', detail: 'Ingredients subtracted dynamically with low-stock warnings.' },
+    ],
+    telemetry: [
+      { label: 'Order-to-KDS Delay', value: '< 15ms' },
+      { label: 'Table Turnover Gain', value: '+22%' },
+    ],
+  },
+  retail: {
+    stages: [
+      { name: 'Multi-Barcode Fast Scanning', detail: 'Immediate basket assembly with volume pricing tier rules.' },
+      { name: 'Multi-Location Live Stock', detail: 'Inter-branch stock balances synced asynchronously.' },
+      { name: 'Offline Receipt Printing', detail: 'Thermal printers fire instantly over USB or localized Wi-Fi.' },
+    ],
+    telemetry: [
+      { label: 'Scan-to-Receipt Time', value: '1.2s' },
+      { label: 'Network Fallback Buffer', value: 'Ready' },
+    ],
+  },
+  repair: {
+    stages: [
+      { name: 'Diagnostic Work Orders', detail: 'Intake photo capture and condition signoff on counter tablets.' },
+      { name: 'Parts Allocation & Labor', detail: 'Stock reserved dynamically against technician work shifts.' },
+      { name: 'SMS & WhatsApp Updates', detail: 'Automated client dispatch when service testing completes.' },
+    ],
+    telemetry: [
+      { label: 'Intake Flow Time', value: '90s' },
+      { label: 'Parts Traceability', value: 'Complete' },
+    ],
+  },
+  education: {
+    stages: [
+      { name: 'Cohort & Course Enrollment', detail: 'Automated tuition installment tracking and payment schedules.' },
+      { name: 'Biometric Attendance Logs', detail: 'Synchronized student logs with guardian absence notifications.' },
+      { name: 'Teacher Gradebook Sync', detail: 'End-of-term transcript generation and certificate printing.' },
+    ],
+    telemetry: [
+      { label: 'Installment Tracking', value: 'Zero Overlook' },
+      { label: 'Sync Status', value: 'Edge-Backed' },
+    ],
+  },
+};
+
+const DEFAULT_ENRICHMENT = {
+  stages: [
+    { name: 'Localized Terminal Flow', detail: 'Dedicated frontline point-of-sale workflow tailored to trade.' },
+    { name: 'Instant Register Balancing', detail: 'Automated end-of-shift cash drawer reconciliations.' },
+    { name: 'Offline-First Edge Sync', detail: 'Full frontline autonomy when cloud connections degrade.' },
+  ],
+  telemetry: [
+    { label: 'System Uptime', value: '99.99%' },
+    { label: 'Edge Latency', value: '< 40ms' },
+  ],
+};
 
 export function CategoryCardSwiper({
   categories = [],
   onSelectCategory,
-  autoPlayInterval = 3800,
+  autoPlayInterval = 4200,
+  theme = 'dark',
 }: CategoryCardSwiperProps) {
   const count = categories.length;
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [direction, setDirection] = useState<'next' | 'prev'>('next');
+  const [isHovered, setIsHovered] = useState(false);
+  const [isAutoPlayEnabled, setIsAutoPlayEnabled] = useState(true);
 
-  // Graceful empty state
+  // Touch gesture state
+  const touchStartXRef = useRef<number | null>(null);
+  const touchDeltaXRef = useRef<number>(0);
+
+  // Auto-play timer
+  useEffect(() => {
+    if (!isAutoPlayEnabled || isHovered || count <= 1) return;
+
+    const timer = setInterval(() => {
+      setDirection('next');
+      setActiveIndex((prev) => (prev + 1) % count);
+    }, autoPlayInterval);
+
+    return () => clearInterval(timer);
+  }, [isAutoPlayEnabled, isHovered, count, autoPlayInterval]);
+
+  const handleNext = useCallback(() => {
+    setDirection('next');
+    setActiveIndex((prev) => (prev + 1) % count);
+  }, [count]);
+
+  const handlePrev = useCallback(() => {
+    setDirection('prev');
+    setActiveIndex((prev) => (prev - 1 + count) % count);
+  }, [count]);
+
+  const goToIndex = (idx: number) => {
+    setDirection(idx > activeIndex ? 'next' : 'prev');
+    setActiveIndex(idx);
+  };
+
+  // Touch event handlers for swipe
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartXRef.current = e.touches[0].clientX;
+    touchDeltaXRef.current = 0;
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (touchStartXRef.current === null) return;
+    touchDeltaXRef.current = e.touches[0].clientX - touchStartXRef.current;
+  };
+
+  const handleTouchEnd = () => {
+    if (touchStartXRef.current === null) return;
+    const threshold = 45;
+    if (touchDeltaXRef.current > threshold) {
+      handlePrev();
+    } else if (touchDeltaXRef.current < -threshold) {
+      handleNext();
+    }
+    touchStartXRef.current = null;
+    touchDeltaXRef.current = 0;
+  };
+
   if (count === 0) {
     return (
       <div className="w-full py-12 px-6 text-center text-stone-500 font-mono text-sm border border-stone-800/60 rounded-2xl bg-stone-950/40 my-6 flex flex-col items-center justify-center gap-2">
@@ -26,393 +173,126 @@ export function CategoryCardSwiper({
     );
   }
 
-  // Determine copies needed for infinite loop buffer
-  const isSingleItem = count === 1;
-  const copies = isSingleItem ? 1 : count < 4 ? 5 : 3;
-  const baseOffsetMultiplier = isSingleItem ? 0 : copies === 5 ? 2 : 1;
-
-  // Create virtual array
-  const extendedCategories = React.useMemo(() => {
-    if (isSingleItem) return [...categories];
-    const arr: CategoryProofItem[] = [];
-    for (let i = 0; i < copies; i++) {
-      arr.push(...categories);
-    }
-    return arr;
-  }, [categories, count, isSingleItem, copies]);
-
-  const [virtualIndex, setVirtualIndex] = useState(() => count * baseOffsetMultiplier);
-  const [isTransitioning, setIsTransitioning] = useState(true);
-  const [dragOffset, setDragOffset] = useState(0);
-  const [isDragging, setIsDragging] = useState(false);
-  const [isHovered, setIsHovered] = useState(false);
-  const [isAutoPlayEnabled, setIsAutoPlayEnabled] = useState(true);
-
-  // Responsive pixel geometries
-  const [containerWidth, setContainerWidth] = useState(() =>
-    typeof window !== 'undefined' ? window.innerWidth : 1200
-  );
-  const [cardWidth, setCardWidth] = useState(460);
-  const [gap, setGap] = useState(24);
-
-  const containerRef = useRef<HTMLDivElement>(null);
-  const startXRef = useRef(0);
-  const startTimeRef = useRef(0);
-  const currentDragRef = useRef(0);
-
-  // Measure container and compute responsive card width and gap
-  useEffect(() => {
-    const updateGeometry = () => {
-      const screenW = window.innerWidth;
-      const cWidth = containerRef.current?.offsetWidth || screenW;
-      setContainerWidth(cWidth);
-
-      if (screenW < 640) {
-        // Mobile: card takes ~84% of screen width, perfectly centered with flanking peaks
-        setCardWidth(Math.min(screenW * 0.84, 340));
-        setGap(14);
-      } else if (screenW < 1024) {
-        // Tablet: card takes ~56% of screen width
-        setCardWidth(Math.min(screenW * 0.54, 420));
-        setGap(20);
-      } else {
-        // Desktop: optimal focal card width
-        setCardWidth(460);
-        setGap(24);
-      }
-    };
-
-    updateGeometry();
-    window.addEventListener('resize', updateGeometry, { passive: true });
-    return () => window.removeEventListener('resize', updateGeometry);
-  }, []);
-
-  const activeOriginalIndex = isSingleItem ? 0 : ((virtualIndex % count) + count) % count;
-
-  // Snapping function to settle cleanly on a target virtual index
-  const snapToVirtualIndex = useCallback((targetIndex: number) => {
-    setIsTransitioning(true);
-    setDragOffset(0);
-    currentDragRef.current = 0;
-    setVirtualIndex(targetIndex);
-  }, []);
-
-  const handleNext = useCallback(() => {
-    if (isSingleItem) return;
-    snapToVirtualIndex(virtualIndex + 1);
-  }, [isSingleItem, virtualIndex, snapToVirtualIndex]);
-
-  const handlePrev = useCallback(() => {
-    if (isSingleItem) return;
-    snapToVirtualIndex(virtualIndex - 1);
-  }, [isSingleItem, virtualIndex, snapToVirtualIndex]);
-
-  const goToOriginalIndex = useCallback(
-    (targetOriginal: number) => {
-      if (isSingleItem) return;
-      setIsTransitioning(true);
-      const currentOriginal = ((virtualIndex % count) + count) % count;
-      let diff = targetOriginal - currentOriginal;
-      if (diff > count / 2) diff -= count;
-      if (diff < -count / 2) diff += count;
-      snapToVirtualIndex(virtualIndex + diff);
-    },
-    [isSingleItem, virtualIndex, count, snapToVirtualIndex]
-  );
-
-  // Seamless jump reset at infinite buffer boundaries
-  const handleTransitionEnd = (e: React.TransitionEvent<HTMLDivElement>) => {
-    if (e.target !== e.currentTarget) return;
-    if (e.propertyName !== 'transform') return;
-    if (isSingleItem) return;
-
-    const minThreshold = count;
-    const maxThreshold = count * (copies - 1);
-
-    if (virtualIndex >= maxThreshold) {
-      setIsTransitioning(false);
-      setVirtualIndex((prev) => prev - count);
-    } else if (virtualIndex < minThreshold) {
-      setIsTransitioning(false);
-      setVirtualIndex((prev) => prev + count);
-    }
-  };
-
-  useEffect(() => {
-    if (!isTransitioning) {
-      const id = requestAnimationFrame(() => {
-        setIsTransitioning(true);
-      });
-      return () => cancelAnimationFrame(id);
-    }
-  }, [isTransitioning]);
-
-  // Autoplay loop
-  useEffect(() => {
-    if (isSingleItem || !isAutoPlayEnabled || isHovered || isDragging) return;
-
-    const timer = setInterval(() => {
-      handleNext();
-    }, autoPlayInterval);
-
-    return () => clearInterval(timer);
-  }, [isSingleItem, isAutoPlayEnabled, isHovered, isDragging, handleNext, autoPlayInterval]);
-
-  // Unified Drag End / Snapping Logic
-  const handleDragRelease = useCallback(() => {
-    if (!isDragging) return;
-    setIsDragging(false);
-
-    const diff = currentDragRef.current;
-    const timeDiff = Date.now() - startTimeRef.current;
-    const cardStepPx = cardWidth + gap;
-
-    // Quick flick check (<280ms and >25px drag)
-    const isQuickFlick = timeDiff < 280 && Math.abs(diff) > 25;
-
-    if (isQuickFlick) {
-      if (diff < 0) {
-        snapToVirtualIndex(virtualIndex + 1);
-      } else {
-        snapToVirtualIndex(virtualIndex - 1);
-      }
-    } else {
-      // Proportional drag check: if dragged past 22% of card width
-      const threshold = cardWidth * 0.22;
-      if (Math.abs(diff) > threshold) {
-        const cardsMoved = Math.round(-diff / cardStepPx);
-        const delta = cardsMoved !== 0 ? cardsMoved : Math.sign(-diff);
-        snapToVirtualIndex(virtualIndex + delta);
-      } else {
-        // Snap back to current center card
-        snapToVirtualIndex(virtualIndex);
-      }
-    }
-
-    setDragOffset(0);
-    currentDragRef.current = 0;
-  }, [isDragging, cardWidth, gap, virtualIndex, snapToVirtualIndex]);
-
-  // Touch handlers
-  const handleTouchStart = (e: React.TouchEvent) => {
-    if (isSingleItem) return;
-    e.stopPropagation();
-    startXRef.current = e.touches[0].clientX;
-    startTimeRef.current = Date.now();
-    currentDragRef.current = 0;
-    setIsDragging(true);
-  };
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    if (!isDragging || isSingleItem) return;
-    e.stopPropagation();
-    const diff = e.touches[0].clientX - startXRef.current;
-    currentDragRef.current = diff;
-    setDragOffset(diff);
-  };
-
-  const handleTouchEnd = (e: React.TouchEvent) => {
-    e.stopPropagation();
-    handleDragRelease();
-  };
-
-  // Mouse drag handlers
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if (isSingleItem) return;
-    e.stopPropagation();
-    startXRef.current = e.clientX;
-    startTimeRef.current = Date.now();
-    currentDragRef.current = 0;
-    setIsDragging(true);
-  };
-
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!isDragging || isSingleItem) return;
-    e.stopPropagation();
-    const diff = e.clientX - startXRef.current;
-    currentDragRef.current = diff;
-    setDragOffset(diff);
-  };
-
-  const handleMouseUp = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    handleDragRelease();
-  };
-
-  const handleMouseLeave = () => {
-    setIsHovered(false);
-    if (isDragging) {
-      handleDragRelease();
-    }
-  };
-
-  // Mathematical center formula (in pixels):
-  // Center of card `virtualIndex` sits exactly at containerWidth / 2
-  const centerOffsetPx = containerWidth / 2 - cardWidth / 2;
-  const cardStepPx = cardWidth + gap;
-  const targetTranslateX = centerOffsetPx - virtualIndex * cardStepPx + dragOffset;
-
-  const activeCategory = categories[activeOriginalIndex] || categories[0];
+  const currentCat = categories[activeIndex] || categories[0];
+  const enrichment = DOMAIN_ENRICHMENTS[currentCat.id] || DEFAULT_ENRICHMENT;
 
   return (
     <div
-      className="swiper-container w-screen relative left-1/2 -translate-x-1/2 overflow-hidden py-4 select-none"
+      className="category-card-showcase w-full max-w-xl mx-auto relative select-none"
       onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={handleMouseLeave}
-      tabIndex={0}
-      aria-label="Infinite category cards carousel"
+      onMouseLeave={() => setIsHovered(false)}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+      aria-label="Category domain workflow showcase"
     >
       {/* ------------------------------------------------------------- */}
-      {/* SWIPE BUTTONS AT THE EDGES OF THE SCREEN */}
+      {/* TALL SINGLE ACTIVE SHOWCASE CARD */}
+      {/* Strict boundary clipping: stays 100% inside container */}
       {/* ------------------------------------------------------------- */}
-      {!isSingleItem && (
-        <>
-          <button
-            type="button"
-            onClick={handlePrev}
-            aria-label="Previous domain"
-            className="absolute left-3 sm:left-6 md:left-10 lg:left-12 top-1/2 -translate-y-1/2 z-30 w-11 h-11 sm:w-13 sm:h-13 rounded-full border border-stone-700/80 bg-stone-950/95 backdrop-blur-md hover:bg-stone-900 hover:border-[#e06b48] text-stone-200 hover:text-white flex items-center justify-center transition cursor-pointer active:scale-90 shadow-[0_4px_25px_rgba(0,0,0,0.9)] group"
-          >
-            <ChevronLeft className="w-5 h-5 sm:w-6 sm:h-6 group-hover:-translate-x-0.5 transition-transform" />
-          </button>
-
-          <button
-            type="button"
-            onClick={handleNext}
-            aria-label="Next domain"
-            className="absolute right-3 sm:right-6 md:right-10 lg:right-12 top-1/2 -translate-y-1/2 z-30 w-11 h-11 sm:w-13 sm:h-13 rounded-full border border-stone-700/80 bg-stone-950/95 backdrop-blur-md hover:bg-stone-900 hover:border-[#e06b48] text-stone-200 hover:text-white flex items-center justify-center transition cursor-pointer active:scale-90 shadow-[0_4px_25px_rgba(0,0,0,0.9)] group"
-          >
-            <ChevronRight className="w-5 h-5 sm:w-6 sm:h-6 group-hover:translate-x-0.5 transition-transform" />
-          </button>
-        </>
-      )}
-
-      {/* ------------------------------------------------------------- */}
-      {/* SWIPABLE TRACK (Centered Snapping Alignment) */}
-      {/* ------------------------------------------------------------- */}
-      <div
-        ref={containerRef}
-        className="w-full overflow-visible relative cursor-grab active:cursor-grabbing touch-pan-y py-6"
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
-        onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-      >
-        <div
-          onTransitionEnd={handleTransitionEnd}
-          className="flex will-change-transform"
-          style={{
-            gap: `${gap}px`,
-            transition:
-              isTransitioning && !isDragging
-                ? 'transform 500ms cubic-bezier(0.22, 1, 0.36, 1)'
-                : 'none',
-            transform: `translate3d(${targetTranslateX}px, 0, 0)`,
-          }}
+      <div className="relative w-full overflow-hidden rounded-3xl min-h-[490px] sm:min-h-[520px]">
+        <SpotlightCard
+          spotlightColor="rgba(224, 107, 72, 0.28)"
+          borderColor="rgba(224, 107, 72, 0.5)"
+          className="group w-full h-full p-6 sm:p-8 bg-stone-950/95 backdrop-blur-md border border-stone-800/90 rounded-3xl shadow-[0_20px_60px_rgba(0,0,0,0.8)] flex flex-col justify-between transition-all duration-300"
         >
-          {extendedCategories.map((cat, virtualIdx) => {
-            const originalIdx = virtualIdx % count;
-            const isCenterFocused = virtualIdx === virtualIndex;
-            // The middle set is the canonical visible set containing the centered card
-            const isCoreSet = isSingleItem ? true : virtualIdx >= count && virtualIdx < count * 2;
-
-            return (
-              <div
-                key={`${cat.id}-${virtualIdx}`}
-                onClick={() => {
-                  if (!isCenterFocused) {
-                    snapToVirtualIndex(virtualIdx);
-                  } else {
-                    onSelectCategory(cat.id);
-                  }
-                }}
-                className={`proof-swiper-card shrink-0 transition-all duration-500 ease-out cursor-pointer ${
-                  isCenterFocused
-                    ? 'scale-100 opacity-100 z-10'
-                    : 'scale-[0.92] opacity-40 hover:opacity-75 z-0'
-                }`}
-                style={{
-                  width: `${cardWidth}px`,
-                }}
+          {/* Card Top Header */}
+          <div>
+            <div className="flex items-center justify-between pb-4 mb-4 border-b border-stone-800/80 text-[11px] font-mono">
+              <span className="text-[#e06b48] font-bold tracking-wider flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-[#e06b48] animate-pulse" />
+                <span>[ 0{activeIndex + 1} // DOMAIN WORKFLOW ]</span>
+              </span>
+              <button
+                type="button"
+                onClick={() => onSelectCategory(currentCat.id)}
+                className="text-stone-400 hover:text-[#f28e72] transition flex items-center gap-1 font-mono text-[11px] cursor-pointer"
               >
-                <div className="proof-card-inner h-full w-full">
-                  <SpotlightCard
-                  spotlightColor="rgba(224, 107, 72, 0.3)"
-                  borderColor={
-                    isCenterFocused
-                      ? 'rgba(224, 107, 72, 0.8)'
-                      : 'rgba(224, 107, 72, 0.22)'
-                  }
-                  className={`group p-6 sm:p-8 shadow-xl transition-all h-full flex flex-col justify-between ${
-                    isCenterFocused
-                      ? 'border-[#e06b48]/80 ring-1 ring-[#e06b48]/40 bg-stone-950 shadow-[0_15px_45px_rgba(224,107,72,0.24)]'
-                      : 'border-stone-800/80 bg-stone-950/70'
-                  }`}
-                >
-                  <div>
-                    {/* Top Row: Index number & Action link */}
-                    <div className="flex items-center justify-between text-[11px] font-mono mb-3.5">
-                      <span
-                        className={`${
-                          isCenterFocused
-                            ? 'text-[#e06b48] font-bold'
-                            : 'text-stone-500'
-                        } tracking-wider`}
-                      >
-                        [ 0{originalIdx + 1} — DOMAIN ]
-                      </span>
-                      <span
-                        className={`text-[10px] ${
-                          isCenterFocused ? 'text-[#f28e72]' : 'text-stone-500'
-                        } group-hover:text-[#f28e72] transition flex items-center gap-1 font-mono`}
-                      >
-                        <span>
-                          {isCenterFocused ? 'View Workflow' : 'Click to Center'}
-                        </span>
-                        <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
-                      </span>
-                    </div>
+                <span>View Full Spec</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
 
-                    {/* Card Title */}
-                    <h3
-                      className={`text-lg sm:text-xl font-semibold transition-colors mb-2.5 ${
-                        isCenterFocused ? 'text-white' : 'text-stone-300'
-                      }`}
-                    >
-                      {cat.label}
-                    </h3>
+            {/* Title & Industry Examples */}
+            <h3 className="text-2xl sm:text-3xl font-editorial font-bold text-stone-100 mb-2 tracking-tight">
+              {currentCat.label}
+            </h3>
+            <p className="text-xs sm:text-sm text-stone-400 font-sans leading-relaxed mb-6">
+              {currentCat.examples}
+            </p>
 
-                    {/* Subtitle / Examples */}
-                    <p className="text-xs sm:text-sm text-stone-400 font-sans leading-relaxed mb-6 min-h-[44px]">
-                      {cat.examples}
-                    </p>
-                  </div>
-
-                  {/* Operational Focus Tag Footer */}
-                  <div className="pt-4 border-t border-stone-800/80 text-[11px] font-mono text-stone-300 flex items-start gap-2">
-                    <span className="text-[#e06b48] font-bold text-xs mt-0.5">›</span>
-                    <span className="text-stone-300 group-hover:text-white transition leading-snug">
-                      {cat.operationalFocus}
-                    </span>
-                  </div>
-                </SpotlightCard>
-                </div>
+            {/* Field Workflow Stages (Taller Card Content) */}
+            <div className="space-y-3 mb-6">
+              <div className="text-[10px] font-mono text-stone-500 uppercase tracking-wider font-semibold">
+                Operational Frontline Workflow
               </div>
-            );
-          })}
-        </div>
+              <div className="space-y-2.5">
+                {enrichment.stages.map((stage, sIdx) => (
+                  <div
+                    key={sIdx}
+                    className="p-3 rounded-xl bg-stone-900/60 border border-stone-800/80 flex items-start gap-3 transition-colors hover:border-stone-700"
+                  >
+                    <div className="w-5 h-5 rounded-full bg-[#b85438]/20 border border-[#b85438]/40 text-[#f28e72] font-mono text-[10px] flex items-center justify-center shrink-0 mt-0.5 font-bold">
+                      0{sIdx + 1}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-xs font-semibold text-stone-200 font-sans">
+                        {stage.name}
+                      </div>
+                      <div className="text-[11px] text-stone-400 font-sans leading-relaxed">
+                        {stage.detail}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Card Bottom: Live Operational Telemetry & Focus Badge */}
+          <div className="pt-4 border-t border-stone-800/80 space-y-3.5">
+            <div className="grid grid-cols-2 gap-3">
+              {enrichment.telemetry.map((tel, tIdx) => (
+                <div key={tIdx} className="p-2.5 rounded-lg bg-stone-900/40 border border-stone-800/60">
+                  <div className="text-[10px] font-mono text-stone-500 truncate mb-0.5">
+                    {tel.label}
+                  </div>
+                  <div className="text-sm font-mono font-bold text-stone-200">
+                    {tel.value}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex items-center justify-between text-[11px] font-mono pt-1 text-stone-400">
+              <span className="flex items-center gap-1.5 text-[#f28e72]">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                <span>{currentCat.operationalFocus}</span>
+              </span>
+              <span className="text-stone-500 text-[10px]">Ready to Deploy</span>
+            </div>
+          </div>
+        </SpotlightCard>
       </div>
 
       {/* ------------------------------------------------------------- */}
-      {/* CENTERED CONTROLS & SNAP INDICATORS */}
+      {/* CENTERED NAVIGATION CONTROLS STRICTLY UNDERNEATH CARD */}
       {/* ------------------------------------------------------------- */}
-      <div className="flex flex-col items-center justify-center gap-3 mt-4 px-4">
-        {/* Centered Segmented Swap Progress Indicator */}
-        {!isSingleItem && (
+      <div className="mt-5 flex flex-col items-center justify-center gap-3">
+        {/* Navigation Bar: Prev, Indicators, Next */}
+        <div className="flex items-center justify-center gap-3">
+          <button
+            type="button"
+            onClick={handlePrev}
+            aria-label="Previous domain workflow"
+            className="w-9 h-9 rounded-full border border-stone-800 bg-stone-950 hover:bg-stone-900 hover:border-[#b85438] text-stone-300 hover:text-white flex items-center justify-center transition cursor-pointer shadow-md active:scale-95"
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+
+          {/* Segmented Progress Pills */}
           <div
-            className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-stone-950/90 border border-stone-800/90 shadow-inner"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-full bg-stone-950 border border-stone-800 shadow-inner"
             role="tablist"
             aria-label="Domain cards pagination"
           >
@@ -421,48 +301,54 @@ export function CategoryCardSwiper({
                 key={cat.id}
                 type="button"
                 role="tab"
-                aria-selected={idx === activeOriginalIndex}
+                aria-selected={idx === activeIndex}
                 aria-label={`Go to domain ${idx + 1}: ${cat.label}`}
-                onClick={() => goToOriginalIndex(idx)}
+                onClick={() => goToIndex(idx)}
                 className={`h-1.5 rounded-full transition-all duration-300 cursor-pointer ${
-                  idx === activeOriginalIndex
-                    ? 'w-8 sm:w-10 bg-[#e06b48] shadow-[0_0_12px_rgba(224,107,72,0.95)]'
-                    : 'w-2 sm:w-2.5 bg-stone-800 hover:bg-stone-700'
+                  idx === activeIndex
+                    ? 'w-7 sm:w-9 bg-[#e06b48] shadow-[0_0_10px_rgba(224,107,72,0.8)]'
+                    : 'w-2 bg-stone-800 hover:bg-stone-700'
                 }`}
               />
             ))}
           </div>
-        )}
 
-        {/* Centered Status & Autoplay Pause/Play Toggle */}
-        <div className="flex items-center justify-center gap-2.5 text-xs font-mono text-stone-400">
-          <span className="px-2 py-0.5 rounded bg-stone-900/90 border border-stone-800 text-[#e06b48] font-bold text-[11px]">
-            [ 0{activeOriginalIndex + 1} / 0{count} ]
+          <button
+            type="button"
+            onClick={handleNext}
+            aria-label="Next domain workflow"
+            className="w-9 h-9 rounded-full border border-stone-800 bg-stone-950 hover:bg-stone-900 hover:border-[#b85438] text-stone-300 hover:text-white flex items-center justify-center transition cursor-pointer shadow-md active:scale-95"
+          >
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Status Counter & Autoplay Controls */}
+        <div className="flex items-center justify-center gap-2 text-xs font-mono text-stone-400">
+          <span className="text-[#f28e72] font-semibold text-[11px]">
+            [ 0{activeIndex + 1} / 0{count} ]
           </span>
-          <span className="text-stone-300 font-medium truncate max-w-xs">
-            {activeCategory?.label}
+          <span className="text-stone-300 truncate max-w-[200px]">
+            {currentCat.label}
           </span>
-          {!isSingleItem && (
-            <button
-              type="button"
-              onClick={() => setIsAutoPlayEnabled((prev) => !prev)}
-              title={isAutoPlayEnabled ? 'Pause auto-scroll' : 'Resume auto-scroll'}
-              aria-label={isAutoPlayEnabled ? 'Pause auto-scroll' : 'Resume auto-scroll'}
-              className="text-stone-500 hover:text-stone-300 transition p-1 cursor-pointer flex items-center ml-1"
-            >
-              {isAutoPlayEnabled && !isHovered ? (
-                <span className="flex items-center gap-1 text-[10px] text-emerald-400/90 font-mono">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  <span>AUTO</span>
-                </span>
-              ) : (
-                <span className="flex items-center gap-1 text-[10px] text-stone-500 font-mono">
-                  <Pause className="w-2.5 h-2.5" />
-                  <span>PAUSED</span>
-                </span>
-              )}
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={() => setIsAutoPlayEnabled((prev) => !prev)}
+            title={isAutoPlayEnabled ? 'Pause auto-cycle' : 'Resume auto-cycle'}
+            className="text-stone-500 hover:text-stone-300 transition p-1 cursor-pointer flex items-center ml-1"
+          >
+            {isAutoPlayEnabled && !isHovered ? (
+              <span className="flex items-center gap-1 text-[10px] text-emerald-400/90 font-mono">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                <span>AUTO</span>
+              </span>
+            ) : (
+              <span className="flex items-center gap-1 text-[10px] text-stone-500 font-mono">
+                <Pause className="w-2.5 h-2.5" />
+                <span>PAUSED</span>
+              </span>
+            )}
+          </button>
         </div>
       </div>
     </div>

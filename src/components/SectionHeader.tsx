@@ -16,14 +16,15 @@ interface SectionHeaderProps {
   className?: string;
   ctaButton?: CtaButtonConfig | React.ReactNode;
   maskedHorizon?: boolean;
+  theme?: 'dark' | 'terracotta' | 'light';
 }
 
 /**
  * SectionHeader
  * Implements Rule 4:
  * - Small Lucide icon + one-word uppercase category label above headline (e.g. ▷ Reality, ▷ Shift, ▷ Pricing)
- * - Two-tone headline: primary text color for the setup clause (text-stone-100), brand terracotta for the payoff (text-[#b85438])
- * - Rationed terracotta discipline: 1 accent point in the headline, crisp neutral subline
+ * - Two-tone headline: primary text color for the setup clause, brand accent for the payoff
+ * - Context-aware theme styling for dark, terracotta, and crisp light surfaces
  * - Optional CTA button placed exactly beneath the text header
  * - Optional maskedHorizon prop enables architectural clipping masks for the horizon rise effect
  */
@@ -37,8 +38,42 @@ export function SectionHeader({
   className = '',
   ctaButton,
   maskedHorizon = false,
+  theme = 'dark',
 }: SectionHeaderProps) {
   const isCenter = align === 'center';
+
+  const tagColorClass =
+    theme === 'light'
+      ? 'text-[#b85438]'
+      : theme === 'terracotta'
+      ? 'text-stone-100/90'
+      : 'text-[#e06b48]';
+
+  const primaryHeadlineClass =
+    theme === 'light'
+      ? 'text-stone-900'
+      : theme === 'terracotta'
+      ? 'text-white'
+      : 'text-stone-100';
+
+  const accentHeadlineClass =
+    theme === 'light'
+      ? 'text-[#b85438]'
+      : theme === 'terracotta'
+      ? 'text-[#ffede6] font-black underline decoration-[#ffede6]/40 underline-offset-4'
+      : 'text-[#b85438]';
+
+  const sublineClass =
+    theme === 'light'
+      ? 'text-stone-600'
+      : theme === 'terracotta'
+      ? 'text-stone-100/85'
+      : 'text-stone-400';
+
+  const defaultBtnClass =
+    theme === 'terracotta'
+      ? 'bg-stone-950 hover:bg-black text-white border border-white/20 shadow-lg shadow-black/30'
+      : 'bg-[#b85438] hover:bg-[#a24830] text-white shadow-lg shadow-[#b85438]/20';
 
   return (
     <div className={`mb-12 ${isCenter ? 'text-center' : 'text-left'} ${className}`}>
@@ -46,21 +81,21 @@ export function SectionHeader({
       {maskedHorizon ? (
         <div className={`overflow-hidden pb-1 -mb-1 ${isCenter ? 'flex justify-center' : ''}`}>
           <div
-            className={`section-tag inline-flex items-center gap-1.5 text-xs font-mono uppercase tracking-widest text-[#e06b48] font-semibold mb-3 ${
+            className={`section-tag inline-flex items-center gap-1.5 text-xs font-mono uppercase tracking-widest ${tagColorClass} font-semibold mb-3 ${
               isCenter ? 'justify-center mx-auto' : ''
             }`}
           >
-            <Icon className="w-3.5 h-3.5 text-[#e06b48] shrink-0" strokeWidth={2.2} />
+            <Icon className="w-3.5 h-3.5 shrink-0" strokeWidth={2.2} />
             <span>{tag}</span>
           </div>
         </div>
       ) : (
         <div
-          className={`section-tag inline-flex items-center gap-1.5 text-xs font-mono uppercase tracking-widest text-[#e06b48] font-semibold mb-3 ${
+          className={`section-tag inline-flex items-center gap-1.5 text-xs font-mono uppercase tracking-widest ${tagColorClass} font-semibold mb-3 ${
             isCenter ? 'justify-center mx-auto' : ''
           }`}
         >
-          <Icon className="w-3.5 h-3.5 text-[#e06b48] shrink-0" strokeWidth={2.2} />
+          <Icon className="w-3.5 h-3.5 shrink-0" strokeWidth={2.2} />
           <span>{tag}</span>
         </div>
       )}
@@ -71,8 +106,8 @@ export function SectionHeader({
           <h2
             className={`section-headline block font-editorial text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight leading-tight`}
           >
-            <span className="text-stone-100">{primary} </span>
-            <span className="text-[#b85438]">{accent}</span>
+            <span className={primaryHeadlineClass}>{primary} </span>
+            <span className={accentHeadlineClass}>{accent}</span>
           </h2>
         </div>
       ) : (
@@ -81,8 +116,8 @@ export function SectionHeader({
             isCenter ? 'max-w-3xl mx-auto' : 'max-w-3xl'
           }`}
         >
-          <span className="text-stone-100">{primary} </span>
-          <span className="text-[#b85438]">{accent}</span>
+          <span className={primaryHeadlineClass}>{primary} </span>
+          <span className={accentHeadlineClass}>{accent}</span>
         </h2>
       )}
 
@@ -91,14 +126,14 @@ export function SectionHeader({
         maskedHorizon ? (
           <div className={`overflow-hidden mt-3 pb-1 -mb-1 ${isCenter ? 'max-w-xl mx-auto' : 'max-w-xl'}`}>
             <p
-              className={`section-subline block text-stone-400 font-normal text-sm sm:text-base leading-relaxed font-sans`}
+              className={`section-subline block ${sublineClass} font-normal text-sm sm:text-base leading-relaxed font-sans`}
             >
               {subline}
             </p>
           </div>
         ) : (
           <p
-            className={`section-subline block text-stone-400 font-normal text-sm sm:text-base leading-relaxed font-sans mt-3 ${
+            className={`section-subline block ${sublineClass} font-normal text-sm sm:text-base leading-relaxed font-sans mt-3 ${
               isCenter ? 'max-w-xl mx-auto' : 'max-w-xl'
             }`}
           >
@@ -118,7 +153,7 @@ export function SectionHeader({
                 <button
                   type="button"
                   onClick={(ctaButton as CtaButtonConfig).onClick}
-                  className="px-5 py-2.5 rounded-md bg-[#b85438] hover:bg-[#a24830] text-white font-semibold text-xs tracking-wider uppercase transition shadow-lg shadow-[#b85438]/20 flex items-center justify-center gap-2 cursor-pointer"
+                  className={`px-5 py-2.5 rounded-md font-semibold text-xs tracking-wider uppercase transition flex items-center justify-center gap-2 cursor-pointer ${defaultBtnClass}`}
                 >
                   <Calendar className="w-3.5 h-3.5" />
                   <span>{(ctaButton as CtaButtonConfig).text}</span>
@@ -134,7 +169,7 @@ export function SectionHeader({
               <button
                 type="button"
                 onClick={(ctaButton as CtaButtonConfig).onClick}
-                className="px-5 py-2.5 rounded-md bg-[#b85438] hover:bg-[#a24830] text-white font-semibold text-xs tracking-wider uppercase transition shadow-lg shadow-[#b85438]/20 flex items-center justify-center gap-2 cursor-pointer"
+                className={`px-5 py-2.5 rounded-md font-semibold text-xs tracking-wider uppercase transition flex items-center justify-center gap-2 cursor-pointer ${defaultBtnClass}`}
               >
                 <Calendar className="w-3.5 h-3.5" />
                 <span>{(ctaButton as CtaButtonConfig).text}</span>

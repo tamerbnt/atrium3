@@ -1,0 +1,6 @@
+{
+  "summary":  "Architectural redesign plan for card showcases across the site: replacing overflowing multi-card carousels with self-contained, tall single-card showcases featuring workflow steps, live operational metrics, strict boundary clipping, and centered pagination controls beneath the card to eliminate text overlap.",
+  "updatedAt":  "2026-10-28T22:20:55.294097818Z",
+  "requestFeedback":  true,
+  "userFacing":  true
+}
