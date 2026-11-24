@@ -1,5 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { ChevronLeft, ChevronRight, Pause, AlertCircle, ShieldAlert, CheckCircle2, ArrowRight } from 'lucide-react';
+import { Language } from '../content/copy';
+import { UI_COPY } from '../content/uiCopy';
 import { SpotlightCard } from './SpotlightCard';
 
 interface ProblemPoint {
@@ -10,67 +12,47 @@ interface ProblemPoint {
 interface ProblemCardSwiperProps {
   points: ProblemPoint[];
   autoPlayInterval?: number;
+  lang?: Language;
 }
-
-// Deep operational diagnosis and Atrium resolutions for the taller card format
-const PROBLEM_DIAGNOSTICS: Record<
-  number,
-  {
-    symptom: string;
-    hiddenCost: string;
-    atriumResolution: string;
-    metricPill: { label: string; value: string };
-  }
-> = {
-  0: {
-    symptom: 'Client notes, reservations, and receipts scattered across separate WhatsApp threads.',
-    hiddenCost: 'Double-booked suites, forgotten VIP preferences, and untracked service add-ons.',
-    atriumResolution: 'Every appointment, treatment note, and receipt linked to a unified customer edge profile.',
-    metricPill: { label: 'Disorganized Notes', value: '0% Allowed' },
-  },
-  1: {
-    symptom: 'Waiting for midnight phone calls or physically counting tills to know if the day broke even.',
-    hiddenCost: 'Unnoticed inventory shrinkage and delayed vendor payments that strain cashflow.',
-    atriumResolution: 'Reconciled multi-branch register totals updated in real-time on your private mobile dashboard.',
-    metricPill: { label: 'Revenue Visibility', value: 'Live Telemetry' },
-  },
-  2: {
-    symptom: 'Manually tallying technician commissions, service cuts, and cash drawer discrepancies on paper.',
-    hiddenCost: 'End-of-month employee frustration, mistrust, and hours wasted arguing over payouts.',
-    atriumResolution: 'Every sale automatically applies staff commission rules and logs till handoffs under 90 seconds.',
-    metricPill: { label: 'Commission Disputes', value: 'Eliminated' },
-  },
-  3: {
-    symptom: 'Opening a second branch feels impossible because store managers need constant oversight.',
-    hiddenCost: 'Founders trapped on the floor as operators rather than scaling into true owners.',
-    atriumResolution: 'Standardized frontline operating procedures that enforce quality and cash control autonomously.',
-    metricPill: { label: 'Branch Autonomy', value: 'Multi-Location' },
-  },
-};
 
 export function ProblemCardSwiper({
   points = [],
   autoPlayInterval = 4400,
+  lang = 'en',
 }: ProblemCardSwiperProps) {
   const count = points.length;
   const [activeIndex, setActiveIndex] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
   const [isAutoPlayEnabled, setIsAutoPlayEnabled] = useState(true);
+  const [isInView, setIsInView] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   // Touch gesture state
   const touchStartXRef = useRef<number | null>(null);
   const touchDeltaXRef = useRef<number>(0);
 
-  // Auto-play timer
+  // Pause autoplay when off-screen
   useEffect(() => {
-    if (!isAutoPlayEnabled || isHovered || count <= 1) return;
+    const el = containerRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => setIsInView(entry.isIntersecting),
+      { rootMargin: '150px' }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  // Auto-play timer (active only while visible)
+  useEffect(() => {
+    if (!isInView || !isAutoPlayEnabled || isHovered || count <= 1) return;
 
     const timer = setInterval(() => {
       setActiveIndex((prev) => (prev + 1) % count);
     }, autoPlayInterval);
 
     return () => clearInterval(timer);
-  }, [isAutoPlayEnabled, isHovered, count, autoPlayInterval]);
+  }, [isInView, isAutoPlayEnabled, isHovered, count, autoPlayInterval]);
 
   const handleNext = useCallback(() => {
     setActiveIndex((prev) => (prev + 1) % count);
@@ -117,10 +99,13 @@ export function ProblemCardSwiper({
   }
 
   const currentPoint = points[activeIndex] || points[0];
-  const diagnosis = PROBLEM_DIAGNOSTICS[activeIndex] || PROBLEM_DIAGNOSTICS[0];
+  const ui = UI_COPY[lang].problem;
+  const proofUi = UI_COPY[lang].proofStrip;
+  const diagnosis = ui.diagnostics[activeIndex] || ui.diagnostics[0];
 
   return (
     <div
+      ref={containerRef}
       className="problem-card-showcase w-full max-w-xl mx-auto relative select-none"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
@@ -137,17 +122,17 @@ export function ProblemCardSwiper({
         <SpotlightCard
           spotlightColor="rgba(239, 68, 68, 0.22)"
           borderColor="rgba(255, 255, 255, 0.15)"
-          className="group w-full h-full p-6 sm:p-8 bg-stone-950/95 backdrop-blur-md border border-white/10 rounded-3xl shadow-[0_20px_60px_rgba(0,0,0,0.6)] flex flex-col justify-between transition-all duration-300"
+          className="group w-full h-full p-6 sm:p-8 bg-stone-950/95 border border-white/10 rounded-3xl shadow-[0_20px_60px_rgba(0,0,0,0.6)] flex flex-col justify-between transition-all duration-300 text-left rtl:text-right"
         >
           {/* Card Top Header */}
-          <div>
+          <div key={`prob-body-${activeIndex}`} className="animate-slide-in">
             <div className="flex items-center justify-between pb-4 mb-4 border-b border-stone-800/80 text-[11px] font-mono">
               <span className="text-amber-300 font-bold tracking-wider flex items-center gap-1.5">
                 <ShieldAlert className="w-4 h-4 text-amber-400" />
-                <span>[ 0{activeIndex + 1} // OPERATIONAL BOTTLENECK ]</span>
+                <span>[ 0{activeIndex + 1} // {ui.badgeTag} ]</span>
               </span>
               <span className="text-stone-400 text-[10px] font-mono uppercase tracking-wider">
-                Field Diagnosis
+                {ui.diagnosisLabel}
               </span>
             </div>
 
@@ -164,7 +149,7 @@ export function ProblemCardSwiper({
               <div className="p-3.5 rounded-xl bg-red-950/30 border border-red-900/40 text-xs font-sans">
                 <div className="text-[10px] font-mono text-red-400 uppercase tracking-wider mb-1 font-bold flex items-center gap-1.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
-                  <span>The Hidden Operational Cost</span>
+                  <span>{ui.hiddenCostLabel}</span>
                 </div>
                 <p className="text-stone-300 text-xs leading-relaxed">
                   {diagnosis.hiddenCost}
@@ -174,7 +159,7 @@ export function ProblemCardSwiper({
               <div className="p-3.5 rounded-xl bg-emerald-950/30 border border-emerald-900/40 text-xs font-sans">
                 <div className="text-[10px] font-mono text-emerald-400 uppercase tracking-wider mb-1 font-bold flex items-center gap-1.5">
                   <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>The Atrium Safeguard</span>
+                  <span>{ui.safeguardLabel}</span>
                 </div>
                 <p className="text-stone-300 text-xs leading-relaxed">
                   {diagnosis.atriumResolution}
@@ -192,8 +177,8 @@ export function ProblemCardSwiper({
               </span>
             </div>
             <span className="text-stone-400 text-[11px] flex items-center gap-1">
-              <span>Resolved at Edge</span>
-              <ArrowRight className="w-3 h-3 text-[#e06b48]" />
+              <span>{ui.resolvedLabel}</span>
+              <ArrowRight className="w-3 h-3 text-[#e06b48] rtl:rotate-180" />
             </span>
           </div>
         </SpotlightCard>
@@ -211,7 +196,7 @@ export function ProblemCardSwiper({
             aria-label="Previous operational bottleneck"
             className="w-9 h-9 rounded-full border border-white/10 bg-black/40 hover:bg-black/60 text-stone-200 hover:text-white flex items-center justify-center transition cursor-pointer shadow-md active:scale-95"
           >
-            <ChevronLeft className="w-4 h-4" />
+            <ChevronLeft className="w-4 h-4 rtl:rotate-180" />
           </button>
 
           {/* Segmented Progress Pills */}
@@ -243,7 +228,7 @@ export function ProblemCardSwiper({
             aria-label="Next operational bottleneck"
             className="w-9 h-9 rounded-full border border-white/10 bg-black/40 hover:bg-black/60 text-stone-200 hover:text-white flex items-center justify-center transition cursor-pointer shadow-md active:scale-95"
           >
-            <ChevronRight className="w-4 h-4" />
+            <ChevronRight className="w-4 h-4 rtl:rotate-180" />
           </button>
         </div>
 
@@ -264,12 +249,12 @@ export function ProblemCardSwiper({
             {isAutoPlayEnabled && !isHovered ? (
               <span className="flex items-center gap-1 text-[10px] text-emerald-300 font-mono">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-300 animate-pulse" />
-                <span>AUTO</span>
+                <span>{proofUi.autoLabel}</span>
               </span>
             ) : (
               <span className="flex items-center gap-1 text-[10px] text-stone-300 font-mono">
                 <Pause className="w-2.5 h-2.5" />
-                <span>PAUSED</span>
+                <span>{proofUi.pausedLabel}</span>
               </span>
             )}
           </button>

@@ -1,8 +1,10 @@
 import React, { useEffect, useState, useRef } from 'react';
+import { computeCounterValue } from '../utils/scrollLogic';
 
 interface AnimatedCounterProps {
   end: number;
   duration?: number; // duration in ms
+  delay?: number; // delay in ms before starting count
   prefix?: string;
   suffix?: string;
   separator?: string;
@@ -17,6 +19,7 @@ interface AnimatedCounterProps {
 export function AnimatedCounter({
   end,
   duration = 1400,
+  delay = 220,
   prefix = '',
   suffix = '',
   separator = ',',
@@ -24,46 +27,62 @@ export function AnimatedCounter({
   className = '',
 }: AnimatedCounterProps) {
   const [count, setCount] = useState(0);
-  const [hasAnimated, setHasAnimated] = useState(false);
+  const hasAnimatedRef = useRef(false);
   const elementRef = useRef<HTMLSpanElement>(null);
 
   useEffect(() => {
     const el = elementRef.current;
-    if (!el) return;
+    if (!el || hasAnimatedRef.current) return;
+
+    const prefersReducedMotion =
+      typeof window !== 'undefined' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let rafId: number | null = null;
 
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting && !hasAnimated) {
-          setHasAnimated(true);
+        if (entries[0].isIntersecting && !hasAnimatedRef.current) {
+          hasAnimatedRef.current = true;
+          observer.disconnect();
+
+          if (prefersReducedMotion || duration <= 0) {
+            setCount(end);
+            return;
+          }
 
           let startTime: number | null = null;
-          const startVal = 0;
 
           const step = (timestamp: number) => {
-            if (!startTime) startTime = timestamp;
-            const progress = Math.min((timestamp - startTime) / duration, 1);
-            // Ease out cubic
-            const easeProgress = 1 - Math.pow(1 - progress, 3);
-            const currentVal = startVal + (end - startVal) * easeProgress;
+            if (startTime === null) startTime = timestamp;
+            const elapsed = timestamp - startTime;
+            const currentVal = computeCounterValue(end, elapsed, duration);
 
             setCount(currentVal);
 
-            if (progress < 1) {
-              requestAnimationFrame(step);
+            if (elapsed < duration) {
+              rafId = requestAnimationFrame(step);
             } else {
               setCount(end);
             }
           };
 
-          requestAnimationFrame(step);
+          timer = setTimeout(() => {
+            rafId = requestAnimationFrame(step);
+          }, Math.min(delay, 160));
         }
       },
-      { threshold: 0.2 }
+      { threshold: 0.05 }
     );
 
     observer.observe(el);
-    return () => observer.disconnect();
-  }, [end, duration, hasAnimated]);
+    return () => {
+      observer.disconnect();
+      if (timer) clearTimeout(timer);
+      if (rafId !== null) cancelAnimationFrame(rafId);
+    };
+  }, [end, duration, delay]);
 
   const formattedNumber = count
     .toFixed(decimals)

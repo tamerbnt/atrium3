@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { ChevronLeft, ChevronRight, ArrowRight, Pause, Play, Layers, Activity, ShieldCheck, CheckCircle2 } from 'lucide-react';
-import { CategoryProofItem } from '../content/copy';
+import { ChevronLeft, ChevronRight, ArrowRight, Pause, Layers, CheckCircle2 } from 'lucide-react';
+import { CategoryProofItem, Language } from '../content/copy';
+import { UI_COPY } from '../content/uiCopy';
 import { SpotlightCard } from './SpotlightCard';
 
 interface CategoryCardSwiperProps {
@@ -8,136 +9,61 @@ interface CategoryCardSwiperProps {
   onSelectCategory: (categoryId: string) => void;
   autoPlayInterval?: number;
   theme?: 'dark' | 'terracotta' | 'light';
+  lang?: Language;
 }
 
-// Domain-specific workflow stages and telemetry enrichments for the taller showcase card
-const DOMAIN_ENRICHMENTS: Record<
-  string,
-  {
-    stages: Array<{ name: string; detail: string }>;
-    telemetry: Array<{ label: string; value: string }>;
-  }
-> = {
-  gym: {
-    stages: [
-      { name: 'NFC Turnstile Edge Check-In', detail: 'Local reader authorization in < 25ms, zero cloud delay.' },
-      { name: 'Automated Trainer Quotas', detail: 'Class attendance tallies commission tiers in real-time.' },
-      { name: 'Local SQLite Buffer', detail: 'Pass renewals saved offline if broadband cuts during peak.' },
-    ],
-    telemetry: [
-      { label: 'Edge Check-in Speed', value: '18ms' },
-      { label: 'Offline Resiliency', value: '100% Guaranteed' },
-    ],
-  },
-  salon: {
-    stages: [
-      { name: 'Chair & Stylist Scheduling', detail: 'Dynamic booking grid prevents double-booked suites.' },
-      { name: 'Instant Tip & Service Split', detail: 'Automated commission calculation per completed treatment.' },
-      { name: 'Client Preference Recall', detail: 'Color formula notes and treatment logs available instantly.' },
-    ],
-    telemetry: [
-      { label: 'Handoff Reconciliation', value: '45 sec' },
-      { label: 'Commission Accuracy', value: '100.0%' },
-    ],
-  },
-  restaurant: {
-    stages: [
-      { name: 'Edge Kitchen Display (KDS)', detail: 'Direct LAN station routing without external internet reliance.' },
-      { name: 'Fast Table Splitting & Tills', detail: 'Multiple payment methods split across seated covers seamlessly.' },
-      { name: 'Recipe Inventory Depletion', detail: 'Ingredients subtracted dynamically with low-stock warnings.' },
-    ],
-    telemetry: [
-      { label: 'Order-to-KDS Delay', value: '< 15ms' },
-      { label: 'Table Turnover Gain', value: '+22%' },
-    ],
-  },
-  retail: {
-    stages: [
-      { name: 'Multi-Barcode Fast Scanning', detail: 'Immediate basket assembly with volume pricing tier rules.' },
-      { name: 'Multi-Location Live Stock', detail: 'Inter-branch stock balances synced asynchronously.' },
-      { name: 'Offline Receipt Printing', detail: 'Thermal printers fire instantly over USB or localized Wi-Fi.' },
-    ],
-    telemetry: [
-      { label: 'Scan-to-Receipt Time', value: '1.2s' },
-      { label: 'Network Fallback Buffer', value: 'Ready' },
-    ],
-  },
-  repair: {
-    stages: [
-      { name: 'Diagnostic Work Orders', detail: 'Intake photo capture and condition signoff on counter tablets.' },
-      { name: 'Parts Allocation & Labor', detail: 'Stock reserved dynamically against technician work shifts.' },
-      { name: 'SMS & WhatsApp Updates', detail: 'Automated client dispatch when service testing completes.' },
-    ],
-    telemetry: [
-      { label: 'Intake Flow Time', value: '90s' },
-      { label: 'Parts Traceability', value: 'Complete' },
-    ],
-  },
-  education: {
-    stages: [
-      { name: 'Cohort & Course Enrollment', detail: 'Automated tuition installment tracking and payment schedules.' },
-      { name: 'Biometric Attendance Logs', detail: 'Synchronized student logs with guardian absence notifications.' },
-      { name: 'Teacher Gradebook Sync', detail: 'End-of-term transcript generation and certificate printing.' },
-    ],
-    telemetry: [
-      { label: 'Installment Tracking', value: 'Zero Overlook' },
-      { label: 'Sync Status', value: 'Edge-Backed' },
-    ],
-  },
-};
-
-const DEFAULT_ENRICHMENT = {
-  stages: [
-    { name: 'Localized Terminal Flow', detail: 'Dedicated frontline point-of-sale workflow tailored to trade.' },
-    { name: 'Instant Register Balancing', detail: 'Automated end-of-shift cash drawer reconciliations.' },
-    { name: 'Offline-First Edge Sync', detail: 'Full frontline autonomy when cloud connections degrade.' },
-  ],
-  telemetry: [
-    { label: 'System Uptime', value: '99.99%' },
-    { label: 'Edge Latency', value: '< 40ms' },
-  ],
-};
+const DEFAULT_ENRICHMENT = UI_COPY.en.proofStrip.enrichments.memberships;
 
 export function CategoryCardSwiper({
   categories = [],
   onSelectCategory,
   autoPlayInterval = 4200,
   theme = 'dark',
+  lang = 'en',
 }: CategoryCardSwiperProps) {
   const count = categories.length;
   const [activeIndex, setActiveIndex] = useState(0);
-  const [direction, setDirection] = useState<'next' | 'prev'>('next');
   const [isHovered, setIsHovered] = useState(false);
   const [isAutoPlayEnabled, setIsAutoPlayEnabled] = useState(true);
+  const [isInView, setIsInView] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   // Touch gesture state
   const touchStartXRef = useRef<number | null>(null);
   const touchDeltaXRef = useRef<number>(0);
 
-  // Auto-play timer
+  // Pause autoplay when off-screen to avoid background DOM churn
   useEffect(() => {
-    if (!isAutoPlayEnabled || isHovered || count <= 1) return;
+    const el = containerRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => setIsInView(entry.isIntersecting),
+      { rootMargin: '150px' }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  // Auto-play timer (active only while visible)
+  useEffect(() => {
+    if (!isInView || !isAutoPlayEnabled || isHovered || count <= 1) return;
 
     const timer = setInterval(() => {
-      setDirection('next');
       setActiveIndex((prev) => (prev + 1) % count);
     }, autoPlayInterval);
 
     return () => clearInterval(timer);
-  }, [isAutoPlayEnabled, isHovered, count, autoPlayInterval]);
+  }, [isInView, isAutoPlayEnabled, isHovered, count, autoPlayInterval]);
 
   const handleNext = useCallback(() => {
-    setDirection('next');
     setActiveIndex((prev) => (prev + 1) % count);
   }, [count]);
 
   const handlePrev = useCallback(() => {
-    setDirection('prev');
     setActiveIndex((prev) => (prev - 1 + count) % count);
   }, [count]);
 
   const goToIndex = (idx: number) => {
-    setDirection(idx > activeIndex ? 'next' : 'prev');
     setActiveIndex(idx);
   };
 
@@ -174,10 +100,12 @@ export function CategoryCardSwiper({
   }
 
   const currentCat = categories[activeIndex] || categories[0];
-  const enrichment = DOMAIN_ENRICHMENTS[currentCat.id] || DEFAULT_ENRICHMENT;
+  const ui = UI_COPY[lang].proofStrip;
+  const enrichment = ui.enrichments[currentCat.id] || DEFAULT_ENRICHMENT;
 
   return (
     <div
+      ref={containerRef}
       className="category-card-showcase w-full max-w-xl mx-auto relative select-none"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
@@ -194,22 +122,22 @@ export function CategoryCardSwiper({
         <SpotlightCard
           spotlightColor="rgba(224, 107, 72, 0.28)"
           borderColor="rgba(224, 107, 72, 0.5)"
-          className="group w-full h-full p-6 sm:p-8 bg-stone-950/95 backdrop-blur-md border border-stone-800/90 rounded-3xl shadow-[0_20px_60px_rgba(0,0,0,0.8)] flex flex-col justify-between transition-all duration-300"
+          className="group w-full h-full p-6 sm:p-8 bg-stone-950/95 border border-stone-800/90 rounded-3xl shadow-[0_20px_60px_rgba(0,0,0,0.8)] flex flex-col justify-between transition-all duration-300 text-left rtl:text-right"
         >
           {/* Card Top Header */}
-          <div>
+          <div key={`cat-body-${activeIndex}`} className="animate-slide-in">
             <div className="flex items-center justify-between pb-4 mb-4 border-b border-stone-800/80 text-[11px] font-mono">
               <span className="text-[#e06b48] font-bold tracking-wider flex items-center gap-1.5">
                 <span className="w-2 h-2 rounded-full bg-[#e06b48] animate-pulse" />
-                <span>[ 0{activeIndex + 1} // DOMAIN WORKFLOW ]</span>
+                <span>[ 0{activeIndex + 1} // {ui.domainWorkflowTag} ]</span>
               </span>
               <button
                 type="button"
                 onClick={() => onSelectCategory(currentCat.id)}
                 className="text-stone-400 hover:text-[#f28e72] transition flex items-center gap-1 font-mono text-[11px] cursor-pointer"
               >
-                <span>View Full Spec</span>
-                <ArrowRight className="w-3.5 h-3.5" />
+                <span>{ui.viewSpec}</span>
+                <ArrowRight className="w-3.5 h-3.5 rtl:rotate-180" />
               </button>
             </div>
 
@@ -224,7 +152,7 @@ export function CategoryCardSwiper({
             {/* Field Workflow Stages (Taller Card Content) */}
             <div className="space-y-3 mb-6">
               <div className="text-[10px] font-mono text-stone-500 uppercase tracking-wider font-semibold">
-                Operational Frontline Workflow
+                {ui.workflowHeading}
               </div>
               <div className="space-y-2.5">
                 {enrichment.stages.map((stage, sIdx) => (
@@ -264,12 +192,12 @@ export function CategoryCardSwiper({
               ))}
             </div>
 
-            <div className="flex items-center justify-between text-[11px] font-mono pt-1 text-stone-400">
-              <span className="flex items-center gap-1.5 text-[#f28e72]">
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                <span>{currentCat.operationalFocus}</span>
+            <div className="flex items-center justify-between text-[11px] font-mono pt-1 text-stone-400 gap-2">
+              <span className="flex items-center gap-1.5 text-[#f28e72] min-w-0">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                <span className="truncate">{currentCat.operationalFocus}</span>
               </span>
-              <span className="text-stone-500 text-[10px]">Ready to Deploy</span>
+              <span className="text-stone-500 text-[10px] shrink-0">{ui.readyToDeploy}</span>
             </div>
           </div>
         </SpotlightCard>
@@ -287,7 +215,7 @@ export function CategoryCardSwiper({
             aria-label="Previous domain workflow"
             className="w-9 h-9 rounded-full border border-stone-800 bg-stone-950 hover:bg-stone-900 hover:border-[#b85438] text-stone-300 hover:text-white flex items-center justify-center transition cursor-pointer shadow-md active:scale-95"
           >
-            <ChevronLeft className="w-4 h-4" />
+            <ChevronLeft className="w-4 h-4 rtl:rotate-180" />
           </button>
 
           {/* Segmented Progress Pills */}
@@ -319,7 +247,7 @@ export function CategoryCardSwiper({
             aria-label="Next domain workflow"
             className="w-9 h-9 rounded-full border border-stone-800 bg-stone-950 hover:bg-stone-900 hover:border-[#b85438] text-stone-300 hover:text-white flex items-center justify-center transition cursor-pointer shadow-md active:scale-95"
           >
-            <ChevronRight className="w-4 h-4" />
+            <ChevronRight className="w-4 h-4 rtl:rotate-180" />
           </button>
         </div>
 
@@ -340,12 +268,12 @@ export function CategoryCardSwiper({
             {isAutoPlayEnabled && !isHovered ? (
               <span className="flex items-center gap-1 text-[10px] text-emerald-400/90 font-mono">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                <span>AUTO</span>
+                <span>{ui.autoLabel}</span>
               </span>
             ) : (
               <span className="flex items-center gap-1 text-[10px] text-stone-500 font-mono">
                 <Pause className="w-2.5 h-2.5" />
-                <span>PAUSED</span>
+                <span>{ui.pausedLabel}</span>
               </span>
             )}
           </button>

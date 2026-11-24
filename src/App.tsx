@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useRef, Suspense, lazy } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo, Suspense, lazy } from 'react';
 import { detectDeviceCapabilities } from './utils/deviceDetection';
 import { SceneMode } from './types';
 import { Language } from './content/copy';
@@ -17,8 +17,8 @@ const DevPerformanceMonitor = import.meta.env.DEV
   ? lazy(() => import('./components/PerformanceMonitor'))
   : null;
 
-// Import 3D Scene directly so hero loads immediately with zero static fallback flash
-import Scene3D from './components/Scene3D';
+// Lazy-load 3D Scene so mobile (< 1024px) never downloads or parses Three.js
+const Scene3D = lazy(() => import('./components/Scene3D'));
 
 export default function App() {
   const [lang, setLang] = useState<Language>('en');
@@ -27,6 +27,7 @@ export default function App() {
   const [activeMode, setActiveMode] = useState<SceneMode>('3d');
   const [isHydrated, setIsHydrated] = useState(false);
   const [isInView, setIsInView] = useState(true);
+  const [showDebugHud, setShowDebugHud] = useState(false);
   const [stats, setStats] = useState<{ fps: number; drawCalls: number; triangles: number }>({
     fps: 60,
     drawCalls: 14,
@@ -75,34 +76,6 @@ export default function App() {
     return () => window.removeEventListener('scroll', handleScrollVisibility);
   }, [isHydrated, deviceProfile.isMobile]);
 
-  const dpr = typeof window !== 'undefined' ? Math.min(window.devicePixelRatio || 1, 2) : 1;
-
-  const [activeWaypointIndex, setActiveWaypointIndex] = useState(0);
-
-  const hero3DNode = !deviceProfile.isMobile ? (
-    <div ref={heroContainerRef} className="w-full h-full relative">
-      {activeMode === '3d' ? (
-        <Scene3D
-          key="atrium-3d-scene"
-          isMobile={false}
-          isInView={isInView}
-          scrollProgress={0}
-          activeWaypointIndex={activeWaypointIndex}
-          onStatsUpdate={(newStats) => setStats(newStats)}
-        />
-      ) : (
-        <StaticFallback
-          reason={deviceProfile.reason}
-          onSwitchTo3D={() => setActiveMode('3d')}
-        />
-      )}
-    </div>
-  ) : (
-    <div ref={heroContainerRef} className="w-full h-full relative" />
-  );
-
-  const [showDebugHud, setShowDebugHud] = useState(false);
-
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
@@ -112,19 +85,74 @@ export default function App() {
     }
   }, []);
 
+  const dpr = typeof window !== 'undefined'
+    ? deviceProfile.isSoftwareGl
+      ? 1
+      : Math.min(window.devicePixelRatio || 1, 2)
+    : 1;
+
+  const [activeWaypointIndex, setActiveWaypointIndex] = useState(0);
+
+  const handleLanguageChange = useCallback((newLang: Language) => setLang(newLang), []);
+  const handleOpenDemo = useCallback(() => setIsDemoOpen(true), []);
+  const handleCloseDemo = useCallback(() => setIsDemoOpen(false), []);
+  const handleWaypointChange = useCallback((idx: number) => setActiveWaypointIndex(idx), []);
+  const handleStatsUpdate = useCallback(
+    (newStats: { fps: number; drawCalls: number; triangles: number }) => setStats(newStats),
+    []
+  );
+
+  const hero3DNode = useMemo(
+    () =>
+      !deviceProfile.isMobile ? (
+        <div ref={heroContainerRef} className="w-full h-full relative">
+          {activeMode === '3d' ? (
+            <Suspense fallback={null}>
+              <Scene3D
+                key="atrium-3d-scene"
+                isMobile={false}
+                isSoftwareGl={deviceProfile.isSoftwareGl}
+                isInView={isInView}
+                scrollProgress={0}
+                activeWaypointIndex={activeWaypointIndex}
+                onStatsUpdate={showDebugHud ? handleStatsUpdate : undefined}
+              />
+            </Suspense>
+          ) : (
+            <StaticFallback
+              reason={deviceProfile.reason}
+              onSwitchTo3D={() => setActiveMode('3d')}
+            />
+          )}
+        </div>
+      ) : (
+        <div ref={heroContainerRef} className="w-full h-full relative" />
+      ),
+    [
+      deviceProfile.isMobile,
+      deviceProfile.isSoftwareGl,
+      deviceProfile.reason,
+      activeMode,
+      isInView,
+      activeWaypointIndex,
+      showDebugHud,
+      handleStatsUpdate,
+    ]
+  );
+
   return (
     <SmoothScroll>
       <div className="min-h-screen bg-black text-white">
         {/* Main Landing Page Funnel Structure with integrated 3D Hero */}
         <PageShell
           lang={lang}
-          onLanguageChange={(newLang) => setLang(newLang)}
-          onOpenDemo={() => setIsDemoOpen(true)}
+          onLanguageChange={handleLanguageChange}
+          onOpenDemo={handleOpenDemo}
           isHydrated={isHydrated}
           activeMode={activeMode}
           hero3DNode={hero3DNode}
           activeWaypointIndex={activeWaypointIndex}
-          onWaypointChange={(idx) => setActiveWaypointIndex(idx)}
+          onWaypointChange={handleWaypointChange}
         />
 
         {/* Dev-only Performance Telemetry: fully excluded from production build */}
@@ -146,7 +174,7 @@ export default function App() {
         {/* Interactive 15-Minute Demo Booking Dialog */}
         <DemoModal
           isOpen={isDemoOpen}
-          onClose={() => setIsDemoOpen(false)}
+          onClose={handleCloseDemo}
           lang={lang}
         />
       </div>

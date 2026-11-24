@@ -168,17 +168,18 @@ export function ClosingWordmark({ lang: _lang = 'en' }: ClosingWordmarkProps) {
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_20%,#0c0a09_90%)]" />
 
         {/* Warm Terracotta Ambient Glow at the center behind the wordmark */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] sm:w-[900px] h-[250px] sm:h-[400px] bg-[#b85438]/10 blur-[120px] rounded-full" />
+        <div
+          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[760px] sm:w-[1140px] h-[380px] sm:h-[620px] pointer-events-none"
+          style={{
+            background: 'radial-gradient(ellipse at center, rgba(184, 84, 56, 0.11) 0%, rgba(184, 84, 56, 0.04) 45%, transparent 72%)',
+          }}
+        />
       </div>
 
       {/* ------------------------------------------------------------- */}
       {/* FOREGROUND CONTENT: Pure Iconic Arabic Wordmark */}
       {/* ------------------------------------------------------------- */}
-      <div
-        className={`relative z-10 w-full px-4 sm:px-8 flex flex-col items-center justify-center text-center transition-all duration-700 ease-out ${
-          isVisible ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-4 scale-[0.98]'
-        }`}
-      >
+      <div className="relative z-10 w-full px-4 sm:px-8 flex flex-col items-center justify-center text-center">
         {/* ----------------------------------------------------------- */}
         {/* THE MASSIVE ARABIC WORDMARK: "أتريوم" */}
         {/* Rendered in Reem Kufi (Bold 700) */}
@@ -187,10 +188,12 @@ export function ClosingWordmark({ lang: _lang = 'en' }: ClosingWordmarkProps) {
         <div
           dir="rtl"
           lang="ar"
-          className="w-full flex items-center justify-center overflow-visible py-4 sm:py-6 select-none"
+          className="w-full flex items-center justify-center overflow-hidden py-4 sm:py-6 select-none"
         >
           <span
-            className="block text-white whitespace-nowrap tracking-tight drop-shadow-[0_12px_50px_rgba(0,0,0,0.9)]"
+            className={`block text-white whitespace-nowrap tracking-tight drop-shadow-[0_12px_50px_rgba(0,0,0,0.9)] transition-all duration-1000 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+              isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-[105%] will-change-transform'
+            }`}
             style={{
               fontFamily: "'Reem Kufi', -apple-system, BlinkMacSystemFont, sans-serif",
               fontWeight: 700,

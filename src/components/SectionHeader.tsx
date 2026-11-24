@@ -1,5 +1,6 @@
 import React from 'react';
 import { LucideIcon, Calendar } from 'lucide-react';
+import { WordMaskText } from './WordMaskText';
 
 export interface CtaButtonConfig {
   text: string;
@@ -26,7 +27,7 @@ interface SectionHeaderProps {
  * - Two-tone headline: primary text color for the setup clause, brand accent for the payoff
  * - Context-aware theme styling for dark, terracotta, and crisp light surfaces
  * - Optional CTA button placed exactly beneath the text header
- * - Optional maskedHorizon prop enables architectural clipping masks for the horizon rise effect
+ * - Optional maskedHorizon prop enables word-by-word architectural clipping masks for the horizon rise effect
  */
 export function SectionHeader({
   icon: Icon,
@@ -76,7 +77,7 @@ export function SectionHeader({
       : 'bg-[#b85438] hover:bg-[#a24830] text-white shadow-lg shadow-[#b85438]/20';
 
   return (
-    <div className={`mb-12 ${isCenter ? 'text-center' : 'text-left'} ${className}`}>
+    <div className={`mb-12 ${isCenter ? 'text-center' : 'text-left rtl:text-right'} ${className}`}>
       {/* Category Pill / Lockup: Small Lucide icon + one-word label */}
       {maskedHorizon ? (
         <div className={`overflow-hidden pb-1 -mb-1 ${isCenter ? 'flex justify-center' : ''}`}>
@@ -100,14 +101,20 @@ export function SectionHeader({
         </div>
       )}
 
-      {/* Two-Tone Headline */}
+      {/* Two-Tone Headline (word-by-word masked horizon rise when maskedHorizon is true) */}
       {maskedHorizon ? (
-        <div className={`overflow-hidden pb-1.5 -mb-1.5 ${isCenter ? 'max-w-3xl mx-auto' : 'max-w-3xl'}`}>
-          <h2
-            className={`section-headline block font-editorial text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight leading-tight`}
-          >
-            <span className={primaryHeadlineClass}>{primary} </span>
-            <span className={accentHeadlineClass}>{accent}</span>
+        <div className={`${isCenter ? 'max-w-3xl mx-auto' : 'max-w-3xl'}`}>
+          <h2 className="section-headline block font-editorial text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight leading-tight">
+            <WordMaskText
+              text={primary}
+              groupClassName="headline-word"
+              wordClassName={primaryHeadlineClass}
+            />{' '}
+            <WordMaskText
+              text={accent}
+              groupClassName="headline-word"
+              wordClassName={accentHeadlineClass}
+            />
           </h2>
         </div>
       ) : (
@@ -121,14 +128,14 @@ export function SectionHeader({
         </h2>
       )}
 
-      {/* Subheadline */}
+      {/* Subheadline (word-by-word masked horizon rise when maskedHorizon is true) */}
       {subline && (
         maskedHorizon ? (
-          <div className={`overflow-hidden mt-3 pb-1 -mb-1 ${isCenter ? 'max-w-xl mx-auto' : 'max-w-xl'}`}>
+          <div className={`mt-3 ${isCenter ? 'max-w-xl mx-auto' : 'max-w-xl'}`}>
             <p
               className={`section-subline block ${sublineClass} font-normal text-sm sm:text-base leading-relaxed font-sans`}
             >
-              {subline}
+              <WordMaskText text={subline} groupClassName="subline-word" />
             </p>
           </div>
         ) : (

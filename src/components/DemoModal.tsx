@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   X,
   CheckCircle2,
@@ -11,7 +11,8 @@ import {
   ArrowRight,
   ShieldCheck,
 } from 'lucide-react';
-import { Language } from '../content/copy';
+import { CONTENT, Language } from '../content/copy';
+import { buildDemoWhatsAppUrl } from '../utils/scrollLogic';
 import { useLenis } from './SmoothScroll';
 import { AtriumBrandLogo } from './AtriumBrandLogo';
 
@@ -30,30 +31,63 @@ export default function DemoModal({ isOpen, onClose, lang }: DemoModalProps) {
   const [ownerName, setOwnerName] = useState('');
   const [preferredSlot, setPreferredSlot] = useState('asap');
   const [submitted, setSubmitted] = useState(false);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
 
-  // Lock and restore smooth scroll
-  useEffect(() => {
-    if (isOpen) {
-      stop();
-    } else {
-      start();
-    }
-    return () => {
-      start();
-    };
-  }, [isOpen, stop, start]);
-
-  // Handle ESC key to close
+  // Lock smooth + native body scroll, manage initial/restore focus, and trap Tab focus
   useEffect(() => {
     if (!isOpen) return;
+
+    previousFocusRef.current = document.activeElement as HTMLElement | null;
+    const prevBodyOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    stop();
+
+    const focusTimer = setTimeout(() => {
+      if (!dialogRef.current) return;
+      const focusable = dialogRef.current.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      );
+      focusable[0]?.focus();
+    }, 0);
+
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
+        e.preventDefault();
         onClose();
+        return;
+      }
+
+      if (e.key === 'Tab' && dialogRef.current) {
+        const focusable = Array.from(
+          dialogRef.current.querySelectorAll<HTMLElement>(
+            'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+          )
+        ).filter((el) => el.offsetParent !== null);
+
+        if (focusable.length === 0) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        }
       }
     };
+
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
+    return () => {
+      clearTimeout(focusTimer);
+      window.removeEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = prevBodyOverflow;
+      start();
+      previousFocusRef.current?.focus?.();
+    };
+  }, [isOpen, onClose, stop, start]);
 
   if (!isOpen) return null;
 
@@ -168,10 +202,23 @@ export default function DemoModal({ isOpen, onClose, lang }: DemoModalProps) {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="relative w-full max-w-2xl max-h-[92vh] flex flex-col bg-stone-950/95 border border-white/[0.12] rounded-3xl shadow-[0_24px_64px_rgba(0,0,0,0.85),inset_0_1px_0_rgba(255,255,255,0.1)] text-stone-200 overflow-hidden">
-        {/* Ambient Terracotta Glow anchored to upper corner */}
-        <div className="absolute -top-24 -right-24 w-80 h-80 bg-[#b85438]/15 rounded-full blur-[90px] pointer-events-none" />
-        <div className="absolute -bottom-24 -left-24 w-72 h-72 bg-[#b85438]/08 rounded-full blur-[80px] pointer-events-none" />
+      <div
+        ref={dialogRef}
+        className="relative w-full max-w-2xl max-h-[92vh] flex flex-col bg-stone-950/95 border border-white/[0.12] rounded-3xl shadow-[0_24px_64px_rgba(0,0,0,0.85),inset_0_1px_0_rgba(255,255,255,0.1)] text-stone-200 overflow-hidden"
+      >
+        {/* Ambient Terracotta Glow anchored to corners via radial gradient (zero blur pass) */}
+        <div
+          className="absolute -top-24 -right-24 w-80 h-80 pointer-events-none"
+          style={{
+            background: 'radial-gradient(circle, rgba(184, 84, 56, 0.22) 0%, rgba(184, 84, 56, 0.06) 45%, transparent 72%)',
+          }}
+        />
+        <div
+          className="absolute -bottom-24 -left-24 w-72 h-72 pointer-events-none"
+          style={{
+            background: 'radial-gradient(circle, rgba(184, 84, 56, 0.14) 0%, rgba(184, 84, 56, 0.04) 45%, transparent 72%)',
+          }}
+        />
 
         {/* Modal Top Header Bar */}
         <div className="relative z-10 flex items-center justify-between px-6 pt-6 pb-4 border-b border-white/[0.08] shrink-0">
@@ -504,6 +551,46 @@ export default function DemoModal({ isOpen, onClose, lang }: DemoModalProps) {
               </div>
 
               <div className="pt-3 flex flex-col sm:flex-row items-center justify-center gap-3">
+                <a
+                  href={buildDemoWhatsAppUrl(CONTENT[lang].footer.phone, {
+                    lang,
+                    ownerName,
+                    businessName,
+                    businessTypeLabel: verticals.find((v) => v.id === businessType)?.label || businessType,
+                    city,
+                    phone,
+                    slotLabel:
+                      preferredSlot === 'asap'
+                        ? lang === 'ar'
+                          ? 'اليوم (في أقرب وقت)'
+                          : lang === 'fr'
+                          ? 'Aujourd’hui (au plus vite)'
+                          : 'Today (ASAP)'
+                        : preferredSlot === 'tomorrow'
+                        ? lang === 'ar'
+                          ? 'غداً صباحاً'
+                          : lang === 'fr'
+                          ? 'Demain matin'
+                          : 'Tomorrow Morning'
+                        : lang === 'ar'
+                        ? 'خلال هذا الأسبوع'
+                        : lang === 'fr'
+                        ? 'Cette semaine'
+                        : 'Later this week',
+                  })}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full sm:w-auto px-6 py-2.5 rounded-full bg-[#b85438] hover:bg-[#a04830] text-white text-xs font-mono font-semibold transition shadow-lg shadow-[#b85438]/25 flex items-center justify-center gap-2"
+                >
+                  <MessageSquare className="w-3.5 h-3.5" />
+                  <span>
+                    {lang === 'ar'
+                      ? 'إرسال التفاصيل عبر واتساب'
+                      : lang === 'fr'
+                      ? 'Envoyer sur WhatsApp'
+                      : 'Send Details on WhatsApp'}
+                  </span>
+                </a>
                 <button
                   type="button"
                   onClick={() => {

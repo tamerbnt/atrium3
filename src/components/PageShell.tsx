@@ -5,11 +5,8 @@ import {
   ChevronRight,
   WifiOff,
   Building,
-  TrendingUp,
   Sliders,
   Check,
-  Globe2,
-  PhoneCall,
   Clock,
   ArrowDownRight,
   ShieldCheck,
@@ -24,6 +21,7 @@ import {
   X,
 } from 'lucide-react';
 import { CONTENT, Language } from '../content/copy';
+import { UI_COPY } from '../content/uiCopy';
 import { useLenis } from './SmoothScroll';
 import { AtriumBrandLogo } from './AtriumBrandLogo';
 import { SpotlightCard } from './SpotlightCard';
@@ -36,8 +34,32 @@ import { CategoryCardSwiper } from './CategoryCardSwiper';
 import { ProblemCardSwiper } from './ProblemCardSwiper';
 import { ShiftCardSwiper } from './ShiftCardSwiper';
 import FaqSection from './FaqSection';
+import { WordMaskText } from './WordMaskText';
+import {
+  evaluateHeroCurtainSnap,
+  findActiveSectionId,
+  isDashboardMetricVisible,
+  KpiFilterMode,
+  SectionOffset,
+} from '../utils/scrollLogic';
 
 gsap.registerPlugin(ScrollTrigger);
+
+const SECTION_IDS = [
+  'section-hero',
+  'section-proof-strip',
+  'section-problem',
+  'section-shift',
+  'section-how-it-works',
+  'section-verticals',
+  'section-differentiation',
+  'section-dashboard',
+  'section-slider',
+  'section-pricing',
+  'section-proof',
+  'section-faq',
+  'section-final-cta',
+];
 
 interface PageShellProps {
   lang: Language;
@@ -50,134 +72,223 @@ interface PageShellProps {
   onWaypointChange?: (index: number) => void;
 }
 
-export default function PageShell({
+const PageShell = React.memo(function PageShell({
   lang,
   onLanguageChange,
   onOpenDemo,
   isHydrated,
-  activeMode,
+  activeMode: _activeMode,
   hero3DNode,
-  activeWaypointIndex = 0,
-  onWaypointChange,
+  activeWaypointIndex: _activeWaypointIndex = 0,
+  onWaypointChange: _onWaypointChange,
 }: PageShellProps) {
   const content = CONTENT[lang];
+  const ui = UI_COPY[lang];
   const isRTL = lang === 'ar';
 
   const [activeVertical, setActiveVertical] = useState('memberships');
-  const [activeKpiFilter, setActiveKpiFilter] = useState<'all' | 'sales' | 'staff' | 'inventory'>('all');
+  const [activeKpiFilter, setActiveKpiFilter] = useState<KpiFilterMode>('all');
   const [isScrolled, setIsScrolled] = useState(false);
   const [isNavVisible, setIsNavVisible] = useState(true);
-  const lastScrollYRef = useRef(0);
   const [activeSectionId, setActiveSectionId] = useState<string>('section-hero');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  const lastScrollYRef = useRef(0);
+  const isScrolledRef = useRef(false);
+  const isNavVisibleRef = useRef(true);
+  const activeSectionIdRef = useRef('section-hero');
+  const sectionOffsetsRef = useRef<SectionOffset[]>([]);
+
   const isTransitioningRef = useRef(false);
-  const transitionTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const transitionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const isSnappingRef = useRef(false);
-  const snapTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const snapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const detachMomentumGuardRef = useRef<(() => void) | null>(null);
 
-  const { lenis, scrollTo: lenisScrollTo } = useLenis(
-    useCallback((lenisInstance: any) => {
-      const scrollY = lenisInstance?.scroll ?? (window.scrollY || document.documentElement.scrollTop);
-      setIsScrolled(scrollY > 60);
+  const unlockSnap = useCallback((lenisInstance?: any) => {
+    isSnappingRef.current = false;
+    if (snapTimerRef.current) {
+      clearTimeout(snapTimerRef.current);
+      snapTimerRef.current = null;
+    }
+    if (detachMomentumGuardRef.current) {
+      detachMomentumGuardRef.current();
+      detachMomentumGuardRef.current = null;
+    }
+    if (lenisInstance) {
+      lenisInstance.velocity = 0;
+    }
+  }, []);
 
-      const prevScrollY = lastScrollYRef.current;
-      const delta = scrollY - prevScrollY;
-
-      if (scrollY <= 20) {
-        setIsNavVisible(true);
-      } else if (delta > 6 && scrollY > 60) {
-        setIsNavVisible(false);
-      } else if (delta < -6) {
-        setIsNavVisible(true);
-      }
-      lastScrollYRef.current = scrollY;
-
-      // Active section spy
-      const sectionIds = [
-        'section-hero',
-        'section-proof-strip',
-        'section-problem',
-        'section-shift',
-        'section-how-it-works',
-        'section-verticals',
-        'section-differentiation',
-        'section-dashboard',
-        'section-slider',
-        'section-pricing',
-        'section-proof',
-        'section-faq',
-        'section-final-cta',
-      ];
-      const scrollPos = scrollY + 160;
-      for (let i = sectionIds.length - 1; i >= 0; i--) {
-        const el = document.getElementById(sectionIds[i]);
-        if (el && scrollPos >= el.offsetTop) {
-          setActiveSectionId(sectionIds[i]);
-          break;
+  const engageMomentumGuard = useCallback(() => {
+    if (detachMomentumGuardRef.current) return;
+    const absorbExcessMomentum = (e: any) => {
+      if (isSnappingRef.current) {
+        e.lenisStopPropagation = true;
+        if (e.cancelable) {
+          e.preventDefault();
         }
       }
+    };
+    window.addEventListener('wheel', absorbExcessMomentum, { capture: true, passive: false });
+    window.addEventListener('touchmove', absorbExcessMomentum, { capture: true, passive: false });
+    detachMomentumGuardRef.current = () => {
+      window.removeEventListener('wheel', absorbExcessMomentum, { capture: true });
+      window.removeEventListener('touchmove', absorbExcessMomentum, { capture: true });
+    };
+  }, []);
 
-      // Smooth trigger glide strictly between Hero and Section 1.5
-      const windowH = window.innerHeight;
-      if (!isSnappingRef.current && lenisInstance) {
-        // Downward glide from hero when user scrolls down (origin gate catches gentle scrolls and high-velocity flicks alike)
-        if (prevScrollY < 120 && (delta > 0 || lenisInstance.direction === 1)) {
-          isSnappingRef.current = true;
-          lenisInstance.velocity = 0;
-          if (snapTimerRef.current) clearTimeout(snapTimerRef.current);
-          lenisInstance.scrollTo('#section-proof-strip', {
-            duration: 0.85,
-            offset: 0,
-            force: true,
-            easing: (t: number) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
-            onComplete: () => {
-              setTimeout(() => {
-                isSnappingRef.current = false;
-                if (lenisInstance) lenisInstance.velocity = 0;
-              }, 140);
-            },
+  // Cache section offsets so scroll listener never queries DOM or forces layout per frame
+  const refreshSectionOffsets = useCallback(() => {
+    const next: SectionOffset[] = [];
+    for (let i = 0; i < SECTION_IDS.length; i++) {
+      const id = SECTION_IDS[i];
+      const el = document.getElementById(id);
+      if (el) {
+        next.push({ id, top: el.offsetTop });
+      }
+    }
+    sectionOffsetsRef.current = next;
+  }, []);
+
+  useEffect(() => {
+    refreshSectionOffsets();
+    const onResize = () => refreshSectionOffsets();
+    window.addEventListener('resize', onResize, { passive: true });
+    ScrollTrigger.addEventListener('refresh', refreshSectionOffsets);
+    const resizeObserver =
+      typeof ResizeObserver !== 'undefined'
+        ? new ResizeObserver(() => refreshSectionOffsets())
+        : null;
+    if (resizeObserver && document.body) {
+      resizeObserver.observe(document.body);
+    }
+    return () => {
+      window.removeEventListener('resize', onResize);
+      ScrollTrigger.removeEventListener('refresh', refreshSectionOffsets);
+      resizeObserver?.disconnect();
+      if (transitionTimerRef.current) clearTimeout(transitionTimerRef.current);
+      unlockSnap();
+    };
+  }, [lang, refreshSectionOffsets, unlockSnap]);
+
+  const { scrollTo: lenisScrollTo } = useLenis(
+    useCallback(
+      (lenisInstance: any) => {
+        const scrollY =
+          lenisInstance?.scroll ?? (window.scrollY || document.documentElement.scrollTop);
+
+        const nextScrolled = scrollY > 60;
+        if (nextScrolled !== isScrolledRef.current) {
+          isScrolledRef.current = nextScrolled;
+          setIsScrolled(nextScrolled);
+        }
+
+        const prevScrollY = lastScrollYRef.current;
+        const delta = scrollY - prevScrollY;
+
+        let nextNavVisible = isNavVisibleRef.current;
+        if (scrollY <= 20) {
+          nextNavVisible = true;
+        } else if (delta > 6 && scrollY > 60) {
+          nextNavVisible = false;
+        } else if (delta < -6) {
+          nextNavVisible = true;
+        }
+        if (nextNavVisible !== isNavVisibleRef.current) {
+          isNavVisibleRef.current = nextNavVisible;
+          setIsNavVisible(nextNavVisible);
+        }
+        lastScrollYRef.current = scrollY;
+
+        // Active section spy using pre-cached offsets (zero layout thrash)
+        if (sectionOffsetsRef.current.length > 0) {
+          const nextActiveId = findActiveSectionId(
+            scrollY + 160,
+            sectionOffsetsRef.current,
+            'section-hero'
+          );
+          if (nextActiveId !== activeSectionIdRef.current) {
+            activeSectionIdRef.current = nextActiveId;
+            setActiveSectionId(nextActiveId);
+          }
+        }
+
+        // Smooth trigger glide strictly between Hero and Section 1.5
+        if (lenisInstance) {
+          const windowH = window.innerHeight;
+          const snapAction = evaluateHeroCurtainSnap({
+            scrollY,
+            prevScrollY,
+            delta,
+            direction: lenisInstance.direction ?? 0,
+            windowH,
+            isSnapping: isSnappingRef.current,
+            isTransitioning: isTransitioningRef.current,
           });
-          snapTimerRef.current = setTimeout(() => {
-            isSnappingRef.current = false;
-            if (lenisInstance) lenisInstance.velocity = 0;
-          }, 1050);
+
+          if (snapAction === 'to-proof-strip') {
+            isSnappingRef.current = true;
+            engageMomentumGuard();
+            lenisInstance.velocity = 0;
+            if (snapTimerRef.current) clearTimeout(snapTimerRef.current);
+            lenisInstance.scrollTo('#section-proof-strip', {
+              duration: 0.85,
+              offset: 0,
+              force: true,
+              easing: (t: number) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+              onComplete: () => {
+                unlockSnap(lenisInstance);
+              },
+            });
+            snapTimerRef.current = setTimeout(() => {
+              unlockSnap(lenisInstance);
+            }, 920);
+          } else if (snapAction === 'to-hero') {
+            isSnappingRef.current = true;
+            engageMomentumGuard();
+            lenisInstance.velocity = 0;
+            if (snapTimerRef.current) clearTimeout(snapTimerRef.current);
+            lenisInstance.scrollTo(0, {
+              duration: 0.85,
+              offset: 0,
+              force: true,
+              easing: (t: number) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+              onComplete: () => {
+                unlockSnap(lenisInstance);
+              },
+            });
+            snapTimerRef.current = setTimeout(() => {
+              unlockSnap(lenisInstance);
+            }, 920);
+          }
         }
-        // Upward glide from top of Section 1.5 when user scrolls back to hero
-        else if (prevScrollY >= 40 && prevScrollY <= windowH + 40 && (delta < 0 || lenisInstance.direction === -1)) {
-          isSnappingRef.current = true;
-          lenisInstance.velocity = 0;
-          if (snapTimerRef.current) clearTimeout(snapTimerRef.current);
-          lenisInstance.scrollTo(0, {
-            duration: 0.85,
-            offset: 0,
-            force: true,
-            easing: (t: number) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
-            onComplete: () => {
-              setTimeout(() => {
-                isSnappingRef.current = false;
-                if (lenisInstance) lenisInstance.velocity = 0;
-              }, 140);
-            },
-          });
-          snapTimerRef.current = setTimeout(() => {
-            isSnappingRef.current = false;
-            if (lenisInstance) lenisInstance.velocity = 0;
-          }, 1050);
-        }
-      }
-    }, [])
+      },
+      [engageMomentumGuard, unlockSnap]
+    )
   );
 
-  const scrollTo = (id: string) => {
-    isTransitioningRef.current = true;
-    if (transitionTimerRef.current) clearTimeout(transitionTimerRef.current);
-    const targetId = id.startsWith('#') ? id.slice(1) : id;
-    lenisScrollTo(`#${targetId}`, { offset: targetId === 'section-proof-strip' ? 0 : -40, duration: 1.0 });
-    transitionTimerRef.current = setTimeout(() => {
-      isTransitioningRef.current = false;
-    }, 1100);
-  };
+  const scrollTo = useCallback(
+    (id: string) => {
+      unlockSnap();
+      isTransitioningRef.current = true;
+      if (transitionTimerRef.current) clearTimeout(transitionTimerRef.current);
+      const targetId = id.startsWith('#') ? id.slice(1) : id;
+      lenisScrollTo(`#${targetId}`, {
+        offset: targetId === 'section-proof-strip' ? 0 : -40,
+        duration: 1.0,
+        force: true,
+        onComplete: () => {
+          isTransitioningRef.current = false;
+        },
+      });
+      transitionTimerRef.current = setTimeout(() => {
+        isTransitioningRef.current = false;
+      }, 1150);
+    },
+    [lenisScrollTo, unlockSnap]
+  );
 
   const currentVertical =
     content.verticals.items.find((v) => v.id === activeVertical) || content.verticals.items[0];
@@ -192,6 +303,7 @@ export default function PageShell({
   const sectionVerticalsRef = useRef<HTMLElement>(null);
   const sectionDiffRef = useRef<HTMLElement>(null);
   const sectionDashboardRef = useRef<HTMLElement>(null);
+  const sectionSliderRef = useRef<HTMLElement>(null);
   const sectionPricingRef = useRef<HTMLElement>(null);
   const sectionProofRef = useRef<HTMLElement>(null);
   const sectionFaqRef = useRef<HTMLElement>(null);
@@ -206,52 +318,28 @@ export default function PageShell({
 
       if ((e.key === 'ArrowDown' || e.key === 'PageDown') && scrollY < 80) {
         e.preventDefault();
-        lenisScrollTo('#section-proof-strip', {
-          duration: 1.15,
-          offset: 0,
-        });
+        scrollTo('section-proof-strip');
       } else if (
         (e.key === 'ArrowUp' || e.key === 'PageUp') &&
         scrollY >= windowH - 60 &&
         scrollY <= windowH + 60
       ) {
         e.preventDefault();
-        lenisScrollTo(0, { duration: 1.1, offset: 0 });
+        scrollTo('section-hero');
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [lenisScrollTo]);
-
-  // Absorb excess kinetic trackpad/wheel momentum during Hero <-> Section 1.5 transitions
-  useEffect(() => {
-    const absorbExcessMomentum = (e: any) => {
-      if (isSnappingRef.current) {
-        e.lenisStopPropagation = true;
-        if (e.cancelable) {
-          e.preventDefault();
-        }
-      }
-    };
-
-    window.addEventListener('wheel', absorbExcessMomentum, { capture: true, passive: false });
-    window.addEventListener('touchmove', absorbExcessMomentum, { capture: true, passive: false });
-
-    return () => {
-      window.removeEventListener('wheel', absorbExcessMomentum, { capture: true });
-      window.removeEventListener('touchmove', absorbExcessMomentum, { capture: true });
-    };
-  }, []);
+  }, [scrollTo]);
 
   /**
-   * Scroll Effects:
-   * EFFECT 1 — Sections arrive from below, covering the previous one (y: 80 -> 0, opacity: 0.15 -> 1)
-   *             with previous section dimming slightly to 0.45.
-   * EXCEPTION — Long sections (Verticals, Pricing, FAQ) use the arrival effect at their entrance,
-   *             then fall back to plain native vertical scroll internally.
-   * EFFECT 2 — Text reveals as a single continuous masked clip-path motion (inset(0 0 100% 0) -> inset(0 0 0% 0))
-   *             with subtle upward 20px settle and fade-in, triggered with a 160ms stagger.
+   * Synchronized Motion Engine:
+   * - Word-by-word masked horizon rise on all headlines, sublines, callouts, and narrative copy
+   * - Responsive choreography via gsap.matchMedia():
+   *     Desktop (>= 1024px): Unified 2-column section timeline so left & right blocks animate in harmonic sync
+   *     Mobile (< 1024px): Independent header + stacked visual/card triggers so every block reveals right in view
+   * - Scrubbed curtain transition between Hero & Section 1.5 + ambient glow depth parallax
    */
   useEffect(() => {
     const prefersReducedMotion =
@@ -259,43 +347,93 @@ export default function PageShell({
       window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
     const ctx = gsap.context(() => {
-      // 0. Hero Section Text Reveal (runs on initial load / hydration)
+      // 0. Hero Section Word-by-Word Masked Horizon Reveal
+      const heroEyebrow = document.querySelector('.hero-eyebrow');
+      const heroWords = gsap.utils.toArray<HTMLElement>('.hero-headline .hero-word');
+      const heroSubWords = gsap.utils.toArray<HTMLElement>('.hero-subheadline .hero-sub-word');
+      const heroCtaGroup = document.querySelector('.hero-cta-group');
+      const heroScrollHint = document.querySelector('.hero-scroll-hint');
+
       if (prefersReducedMotion) {
-        gsap.set('.hero-eyebrow, .hero-headline, .hero-subheadline', {
-          opacity: 1,
-          y: 0,
-          clipPath: 'none',
-        });
+        gsap.set(
+          [heroEyebrow, ...heroWords, ...heroSubWords, heroCtaGroup, heroScrollHint].filter(Boolean),
+          { clearProps: 'transform,opacity,clipPath' }
+        );
       } else {
-        const heroTl = gsap.timeline({ delay: 0.15 });
-        heroTl
-          .fromTo(
-            '.hero-eyebrow',
-            { opacity: 0, y: 12 },
-            { opacity: 1, y: 0, duration: 0.5, ease: 'power2.out' }
-          )
-          .fromTo(
-            '.hero-headline',
-            { clipPath: 'inset(0 0 100% 0)', y: 20, opacity: 0 },
-            { clipPath: 'inset(0 0 0% 0)', y: 0, opacity: 1, duration: 0.85, ease: 'power3.out' },
-            0.1
-          )
-          .fromTo(
-            '.hero-subheadline',
-            { clipPath: 'inset(0 0 100% 0)', y: 16, opacity: 0 },
-            { clipPath: 'inset(0 0 0% 0)', y: 0, opacity: 1, duration: 0.75, ease: 'power3.out' },
-            0.25
+        const heroTl = gsap.timeline({
+          delay: 0.08,
+          onComplete: () => {
+            gsap.set(
+              [heroEyebrow, ...heroWords, ...heroSubWords, heroCtaGroup, heroScrollHint].filter(Boolean),
+              { clearProps: 'transform,opacity,clipPath' }
+            );
+          },
+        });
+
+        if (heroEyebrow) {
+          heroTl.fromTo(
+            heroEyebrow,
+            { opacity: 0, y: 14 },
+            { opacity: 1, y: 0, duration: 0.45, ease: 'power3.out' },
+            0
           );
+        }
+
+        if (heroWords.length > 0) {
+          heroTl.fromTo(
+            heroWords,
+            { yPercent: 115, opacity: 0 },
+            {
+              yPercent: 0,
+              opacity: 1,
+              duration: 0.68,
+              stagger: 0.065,
+              ease: 'power3.out',
+            },
+            0.06
+          );
+        }
+
+        if (heroSubWords.length > 0) {
+          heroTl.fromTo(
+            heroSubWords,
+            { yPercent: 108, opacity: 0 },
+            {
+              yPercent: 0,
+              opacity: 1,
+              duration: 0.48,
+              stagger: 0.015,
+              ease: 'power2.out',
+            },
+            0.22
+          );
+        }
+
+        if (heroCtaGroup) {
+          heroTl.fromTo(
+            heroCtaGroup,
+            { opacity: 0, y: 16 },
+            { opacity: 1, y: 0, duration: 0.52, ease: 'power2.out' },
+            0.42
+          );
+        }
+
+        if (heroScrollHint) {
+          heroTl.fromTo(
+            heroScrollHint,
+            { opacity: 0, y: 10 },
+            { opacity: 1, y: 0, duration: 0.45, ease: 'power2.out' },
+            0.54
+          );
+        }
       }
 
-      // Hero exit motion during Section 1.5 Curtain Reveal:
-      // Hero remains anchored via CSS sticky while Section 1.5 slides UP over it
+      // Hero exit motion during Section 1.5 Curtain Reveal
       if (!prefersReducedMotion && sectionProofStripRef.current) {
-        // Cinematic exit motion: Hero typography & 3D cluster scale subtly down and dim as curtain rises
         gsap.to('.hero-inner-content', {
-          opacity: 0.15,
+          opacity: 0.12,
           scale: 0.94,
-          y: -20,
+          y: -24,
           ease: 'none',
           scrollTrigger: {
             trigger: sectionProofStripRef.current,
@@ -306,7 +444,7 @@ export default function PageShell({
         });
 
         gsap.to('.hero-3d-layer', {
-          opacity: 0.2,
+          opacity: 0.18,
           scale: 0.95,
           ease: 'none',
           scrollTrigger: {
@@ -318,402 +456,488 @@ export default function PageShell({
         });
       }
 
-      // =========================================================================
-      // DECOUPLED MOTION ENGINE: HORIZON RISE & SEQUENTIAL CASCADE
-      // Applies the verified, decoupled ScrollTrigger pattern across all sections:
-      // 1. setupHorizonRise: Dedicated header trigger (start: 'top 85%'),
-      //    animates tag, headline, subline, cta in masked containers.
-      // 2. setupCardCascade: Dedicated grid trigger (start: 'top 80%'),
-      //    animates cards with deliberate stagger and proportional travel.
-      // 3. Scoped clearProps: 'transform,opacity' runs independently per timeline.
-      // =========================================================================
-
-      const setupHorizonRise = (
-        headerEl: Element | null,
-        options: { start?: string; delay?: number } = {}
-      ) => {
-        if (!headerEl) return;
-        const tag = headerEl.querySelector('.section-tag');
-        const headline = headerEl.querySelector('.section-headline');
-        const subline = headerEl.querySelector('.section-subline');
-        const ctaWrap = headerEl.querySelector('.section-cta-wrap');
-
-        if (prefersReducedMotion) {
-          const els = [tag, headline, subline, ctaWrap].filter(Boolean);
-          gsap.set(els, { clearProps: 'transform,opacity' });
-          return;
-        }
-
-        const tl = gsap.timeline({
-          scrollTrigger: {
-            trigger: headerEl,
-            start: options.start || 'top 85%',
-            toggleActions: 'play none none none',
-            once: true,
-          },
-          onComplete: () => {
-            const els = [tag, headline, subline, ctaWrap].filter(Boolean);
-            gsap.set(els, { clearProps: 'transform,opacity' });
-          },
+      // Ambient Glow Orbs Subtle Scroll Parallax
+      if (!prefersReducedMotion) {
+        const glowOrbs = gsap.utils.toArray<HTMLElement>('.ambient-glow-orb');
+        glowOrbs.forEach((orb, idx) => {
+          gsap.fromTo(
+            orb,
+            { y: idx % 2 === 0 ? -40 : 40 },
+            {
+              y: idx % 2 === 0 ? 60 : -60,
+              ease: 'none',
+              scrollTrigger: {
+                trigger: orb.parentElement || document.body,
+                start: 'top bottom',
+                end: 'bottom top',
+                scrub: 1.4,
+              },
+            }
+          );
         });
+      }
+
+      // Helper to animate a section's header + narrative + visuals in tight rhythmic sequence
+      interface SectionMotionConfig {
+        section: HTMLElement | null;
+        startDesktop?: string;
+        startMobile?: string;
+        visualSelector?: string;
+        cardSelector?: string;
+        cardStagger?: number;
+        calloutSelector?: string;
+        extraRevealSelector?: string;
+        wordSelector?: string;
+        wordStagger?: number;
+        wordDuration?: number;
+      }
+
+      const mm = gsap.matchMedia();
+
+      const animateHeaderIntoTimeline = (
+        tl: gsap.core.Timeline,
+        container: Element,
+        baseOffset = 0
+      ) => {
+        const tag = container.querySelector('.section-tag');
+        const headlineWords = container.querySelectorAll('.section-headline .headline-word');
+        const sublineWords = container.querySelectorAll('.section-subline .subline-word');
+        const ctaWrap = container.querySelector('.section-cta-wrap');
 
         if (tag) {
           tl.fromTo(
             tag,
-            { opacity: 0, yPercent: 100 },
-            { opacity: 1, yPercent: 0, duration: 0.50, ease: 'power2.out' },
-            0
+            { opacity: 0, yPercent: 110 },
+            { opacity: 1, yPercent: 0, duration: 0.45, ease: 'power3.out' },
+            baseOffset
           );
         }
 
-        if (headline) {
+        if (headlineWords.length > 0) {
           tl.fromTo(
-            headline,
-            { opacity: 0.2, yPercent: 105 },
+            headlineWords,
+            { yPercent: 115, opacity: 0 },
             {
-              opacity: 1,
               yPercent: 0,
-              duration: 0.85,
+              opacity: 1,
+              duration: 0.62,
+              stagger: 0.045,
               ease: 'power3.out',
             },
-            0.08
+            baseOffset + 0.05
           );
         }
 
-        if (subline) {
+        if (sublineWords.length > 0) {
           tl.fromTo(
-            subline,
-            { opacity: 0, yPercent: 100 },
+            sublineWords,
+            { yPercent: 108, opacity: 0 },
             {
-              opacity: 1,
               yPercent: 0,
-              duration: 0.72,
+              opacity: 1,
+              duration: 0.46,
+              stagger: 0.015,
               ease: 'power2.out',
             },
-            0.20
+            baseOffset + 0.18
           );
         }
 
         if (ctaWrap) {
           tl.fromTo(
             ctaWrap,
-            { opacity: 0, yPercent: 100 },
-            { opacity: 1, yPercent: 0, duration: 0.60, ease: 'power2.out' },
-            0.32
+            { opacity: 0, yPercent: 105 },
+            { opacity: 1, yPercent: 0, duration: 0.50, ease: 'power2.out' },
+            baseOffset + 0.30
           );
         }
 
-        return tl;
-      };
-
-      const setupCardCascade = (
-        containerEl: Element | null,
-        cardsNodeList: NodeListOf<Element> | Element[] | null,
-        options: {
-          start?: string;
-          stagger?: number;
-          y?: number;
-          scale?: number;
-          duration?: number;
-        } = {}
-      ) => {
-        if (!containerEl || !cardsNodeList || cardsNodeList.length === 0) return;
-        const cards = Array.from(cardsNodeList);
-
-        if (prefersReducedMotion) {
-          gsap.set(cards, { clearProps: 'transform,opacity' });
-          return;
-        }
-
-        const tl = gsap.timeline({
-          scrollTrigger: {
-            trigger: containerEl,
-            start: options.start || 'top 80%',
-            toggleActions: 'play none none none',
-            once: true,
-          },
-          onComplete: () => {
-            gsap.set(cards, { clearProps: 'transform,opacity' });
-          },
-        });
-
-        tl.fromTo(
-          cards,
-          {
-            opacity: 0,
-            y: options.y ?? 36,
-            scale: options.scale ?? 0.975,
-          },
-          {
-            opacity: 1,
-            y: 0,
-            scale: 1,
-            duration: options.duration ?? 0.70,
-            stagger: options.stagger ?? 0.16,
-            ease: 'power2.out',
-          },
-          0
+        return [tag, ...Array.from(headlineWords), ...Array.from(sublineWords), ctaWrap].filter(
+          (el): el is Element => el !== null
         );
-
-        return tl;
       };
 
-      // -------------------------------------------------------------------------
-      // SECTION 1.5 — PROOF STRIP
-      // -------------------------------------------------------------------------
-      if (sectionProofStripRef.current) {
-        setupHorizonRise(sectionProofStripRef.current.querySelector('.proof-strip-header'));
-      }
+      const registerSectionChoreography = (configs: SectionMotionConfig[]) => {
+        // Desktop (>= 1024px): Unified 2-column harmonic timeline per section
+        mm.add('(min-width: 1024px)', () => {
+          configs.forEach((cfg) => {
+            if (!cfg.section) return;
+            const section = cfg.section;
 
-      // -------------------------------------------------------------------------
-      // SECTION 2 — THE PROBLEM
-      // -------------------------------------------------------------------------
-      if (sectionProblemRef.current) {
-        setupHorizonRise(sectionProblemRef.current.querySelector('.problem-header'));
-      }
+            if (prefersReducedMotion) {
+              const allTargets = section.querySelectorAll(
+                '.section-tag, .headline-word, .subline-word, .section-cta-wrap, .horizon-word, .section-reveal-item, .section-callout-box'
+              );
+              gsap.set(allTargets, { clearProps: 'transform,opacity,clipPath' });
+              return;
+            }
 
-      // -------------------------------------------------------------------------
-      // SECTION 3 — THE SHIFT
-      // -------------------------------------------------------------------------
-      if (sectionShiftRef.current) {
-        setupHorizonRise(sectionShiftRef.current.querySelector('.shift-header'));
-
-        // Metaphor callout smooth reveal
-        const callout = sectionShiftRef.current.querySelector('.shift-callout');
-        if (callout && !prefersReducedMotion) {
-          gsap.fromTo(
-            callout,
-            { opacity: 0, y: 24 },
-            {
-              opacity: 1,
-              y: 0,
-              duration: 0.65,
-              ease: 'power2.out',
+            const clearedTargets: Element[] = [];
+            const tl = gsap.timeline({
               scrollTrigger: {
-                trigger: callout,
-                start: 'top 85%',
+                trigger: section,
+                start: cfg.startDesktop || 'top 76%',
                 toggleActions: 'play none none none',
                 once: true,
               },
               onComplete: () => {
-                gsap.set(callout, { clearProps: 'transform,opacity' });
+                gsap.set(clearedTargets, { clearProps: 'transform,opacity,clipPath' });
               },
-            }
-          );
-        }
-      }
+            });
 
-      // -------------------------------------------------------------------------
-      // INTERLUDE — THE FEELING LINE
-      // -------------------------------------------------------------------------
+            clearedTargets.push(...animateHeaderIntoTimeline(tl, section, 0));
+
+            if (cfg.visualSelector) {
+              const visuals = Array.from(section.querySelectorAll(cfg.visualSelector));
+              if (visuals.length > 0) {
+                tl.fromTo(
+                  visuals,
+                  { opacity: 0, y: 30, scale: 0.98 },
+                  {
+                    opacity: 1,
+                    y: 0,
+                    scale: 1,
+                    duration: 0.70,
+                    stagger: 0.10,
+                    ease: 'power3.out',
+                  },
+                  0.18
+                );
+                clearedTargets.push(...visuals);
+              }
+            }
+
+            if (cfg.extraRevealSelector) {
+              const extras = Array.from(section.querySelectorAll(cfg.extraRevealSelector));
+              if (extras.length > 0) {
+                tl.fromTo(
+                  extras,
+                  { opacity: 0, y: 16 },
+                  {
+                    opacity: 1,
+                    y: 0,
+                    duration: 0.46,
+                    stagger: 0.045,
+                    ease: 'power2.out',
+                  },
+                  0.26
+                );
+                clearedTargets.push(...extras);
+              }
+            }
+
+            if (cfg.cardSelector) {
+              const cards = Array.from(section.querySelectorAll(cfg.cardSelector));
+              if (cards.length > 0) {
+                tl.fromTo(
+                  cards,
+                  { opacity: 0, y: 28, scale: 0.978 },
+                  {
+                    opacity: 1,
+                    y: 0,
+                    scale: 1,
+                    duration: 0.58,
+                    stagger: cfg.cardStagger ?? 0.09,
+                    ease: 'power2.out',
+                  },
+                  0.24
+                );
+                clearedTargets.push(...cards);
+              }
+            }
+
+            if (cfg.calloutSelector) {
+              const callouts = Array.from(section.querySelectorAll(cfg.calloutSelector));
+              if (callouts.length > 0) {
+                tl.fromTo(
+                  callouts,
+                  { opacity: 0, y: 20 },
+                  {
+                    opacity: 1,
+                    y: 0,
+                    duration: 0.52,
+                    stagger: 0.08,
+                    ease: 'power2.out',
+                  },
+                  0.32
+                );
+                clearedTargets.push(...callouts);
+              }
+            }
+
+            const bodyWords = Array.from(
+              section.querySelectorAll(
+                cfg.wordSelector || '.callout-word, .card-word, .slider-word, .credibility-word'
+              )
+            );
+            if (bodyWords.length > 0) {
+              tl.fromTo(
+                bodyWords,
+                { yPercent: 108, opacity: 0 },
+                {
+                  yPercent: 0,
+                  opacity: 1,
+                  duration: cfg.wordDuration ?? 0.42,
+                  stagger: cfg.wordStagger ?? 0.011,
+                  ease: 'power2.out',
+                },
+                0.34
+              );
+              clearedTargets.push(...bodyWords);
+            }
+          });
+        });
+
+        // Mobile / Tablet (< 1024px): Decoupled triggers so stacked columns animate right as they enter view
+        mm.add('(max-width: 1023px)', () => {
+          configs.forEach((cfg) => {
+            if (!cfg.section) return;
+            const section = cfg.section;
+
+            if (prefersReducedMotion) {
+              const allTargets = section.querySelectorAll(
+                '.section-tag, .headline-word, .subline-word, .section-cta-wrap, .horizon-word, .section-reveal-item, .section-callout-box'
+              );
+              gsap.set(allTargets, { clearProps: 'transform,opacity,clipPath' });
+              return;
+            }
+
+            // 1. Header & narrative column
+            const headerTriggerEl =
+              section.querySelector('.section-headline')?.closest('div')?.parentElement || section;
+            const headerCleared: Element[] = [];
+            const headerTl = gsap.timeline({
+              scrollTrigger: {
+                trigger: headerTriggerEl,
+                start: cfg.startMobile || 'top 84%',
+                toggleActions: 'play none none none',
+                once: true,
+              },
+              onComplete: () => {
+                gsap.set(headerCleared, { clearProps: 'transform,opacity,clipPath' });
+              },
+            });
+            headerCleared.push(...animateHeaderIntoTimeline(headerTl, section, 0));
+
+            if (cfg.calloutSelector) {
+              const callouts = Array.from(section.querySelectorAll(cfg.calloutSelector));
+              if (callouts.length > 0) {
+                headerTl.fromTo(
+                  callouts,
+                  { opacity: 0, y: 18 },
+                  { opacity: 1, y: 0, duration: 0.48, stagger: 0.08, ease: 'power2.out' },
+                  0.28
+                );
+                headerCleared.push(...callouts);
+              }
+            }
+
+            const calloutWords = Array.from(section.querySelectorAll('.callout-word'));
+            if (calloutWords.length > 0) {
+              headerTl.fromTo(
+                calloutWords,
+                { yPercent: 108, opacity: 0 },
+                { yPercent: 0, opacity: 1, duration: 0.40, stagger: 0.011, ease: 'power2.out' },
+                0.32
+              );
+              headerCleared.push(...calloutWords);
+            }
+
+            // 2. Stacked visual panel / cards below
+            const visualTargets = [
+              ...(cfg.visualSelector ? Array.from(section.querySelectorAll(cfg.visualSelector)) : []),
+              ...(cfg.cardSelector ? Array.from(section.querySelectorAll(cfg.cardSelector)) : []),
+              ...(cfg.extraRevealSelector
+                ? Array.from(section.querySelectorAll(cfg.extraRevealSelector))
+                : []),
+            ];
+
+            if (visualTargets.length > 0) {
+              const bodyWords = Array.from(
+                section.querySelectorAll('.card-word, .slider-word, .credibility-word')
+              );
+              const visualTriggerEl = visualTargets[0];
+              const visualCleared: Element[] = [...visualTargets, ...bodyWords];
+
+              const visualTl = gsap.timeline({
+                scrollTrigger: {
+                  trigger: visualTriggerEl,
+                  start: 'top 86%',
+                  toggleActions: 'play none none none',
+                  once: true,
+                },
+                onComplete: () => {
+                  gsap.set(visualCleared, { clearProps: 'transform,opacity,clipPath' });
+                },
+              });
+
+              visualTl.fromTo(
+                visualTargets,
+                { opacity: 0, y: 24, scale: 0.98 },
+                {
+                  opacity: 1,
+                  y: 0,
+                  scale: 1,
+                  duration: 0.55,
+                  stagger: 0.075,
+                  ease: 'power2.out',
+                },
+                0
+              );
+
+              if (bodyWords.length > 0) {
+                visualTl.fromTo(
+                  bodyWords,
+                  { yPercent: 108, opacity: 0 },
+                  {
+                    yPercent: 0,
+                    opacity: 1,
+                    duration: 0.40,
+                    stagger: 0.01,
+                    ease: 'power2.out',
+                  },
+                  0.14
+                );
+              }
+            }
+          });
+        });
+      };
+
+      registerSectionChoreography([
+        {
+          section: sectionProofStripRef.current,
+          startDesktop: 'top 80%',
+          startMobile: 'top 84%',
+          visualSelector: '.proof-visual-panel',
+          extraRevealSelector: '.proof-explore-link',
+        },
+        {
+          section: sectionProblemRef.current,
+          visualSelector: '.problem-visual-panel',
+          calloutSelector: '.problem-callout',
+        },
+        {
+          section: sectionShiftRef.current,
+          visualSelector: '.shift-visual-panel',
+          calloutSelector: '.shift-callout',
+        },
+        {
+          section: sectionHowRef.current,
+          visualSelector: '.how-canvas-panel',
+          cardSelector: '.how-step-card',
+          cardStagger: 0.09,
+        },
+        {
+          section: sectionVerticalsRef.current,
+          visualSelector: '.vertical-card',
+          extraRevealSelector: '.vertical-tab-btn',
+        },
+        {
+          section: sectionDiffRef.current,
+          cardSelector: '.pillar-card',
+          cardStagger: 0.09,
+          calloutSelector: '.diff-callout',
+        },
+        {
+          section: sectionDashboardRef.current,
+          visualSelector: '.dashboard-console',
+          cardSelector: '.dashboard-card',
+          cardStagger: 0.09,
+          calloutSelector: '.dashboard-callout',
+          extraRevealSelector: '.dashboard-filters, .dashboard-table',
+        },
+        {
+          section: sectionSliderRef.current,
+          visualSelector: '.slider-panel',
+          cardSelector: '.slider-check-card',
+          cardStagger: 0.09,
+        },
+        {
+          section: sectionPricingRef.current,
+          cardSelector: '.pricing-card',
+          cardStagger: 0.11,
+          calloutSelector: '.pricing-callout',
+        },
+        {
+          section: sectionProofRef.current,
+          visualSelector: '.credibility-card',
+          extraRevealSelector: '.credibility-badge',
+          wordStagger: 0.011,
+        },
+        {
+          section: sectionFaqRef.current,
+          cardSelector: '.faq-item',
+          cardStagger: 0.065,
+          calloutSelector: '.faq-support-card',
+        },
+        {
+          section: sectionFinalCtaRef.current,
+          startDesktop: 'top 82%',
+          startMobile: 'top 86%',
+          visualSelector: '.final-cta-card',
+          extraRevealSelector: '.final-cta-check-item',
+        },
+      ]);
+
+      // Interlude — Feeling Line Word-by-Word Editorial Reveal
       if (sectionFeelingRef.current) {
-        const feelingP = sectionFeelingRef.current.querySelector('.section-headline');
-        if (feelingP && !prefersReducedMotion) {
-          gsap.fromTo(
-            feelingP,
-            { opacity: 0.2, yPercent: 75 },
-            {
-              opacity: 1,
-              yPercent: 0,
-              duration: 0.90,
-              ease: 'power3.out',
-              scrollTrigger: {
-                trigger: sectionFeelingRef.current,
-                start: 'top 80%',
-                toggleActions: 'play none none none',
-                once: true,
-              },
-              onComplete: () => {
-                gsap.set(feelingP, { clearProps: 'transform,opacity' });
-              },
-            }
-          );
+        const feelingWords = Array.from(
+          sectionFeelingRef.current.querySelectorAll('.feeling-word')
+        );
+        if (feelingWords.length > 0) {
+          if (prefersReducedMotion) {
+            gsap.set(feelingWords, { clearProps: 'transform,opacity' });
+          } else {
+            gsap.fromTo(
+              feelingWords,
+              { opacity: 0, yPercent: 115 },
+              {
+                opacity: 1,
+                yPercent: 0,
+                duration: 0.72,
+                stagger: 0.085,
+                ease: 'power3.out',
+                scrollTrigger: {
+                  trigger: sectionFeelingRef.current,
+                  start: 'top 78%',
+                  toggleActions: 'play none none none',
+                  once: true,
+                },
+                onComplete: () => {
+                  gsap.set(feelingWords, { clearProps: 'transform,opacity' });
+                },
+              }
+            );
+          }
         }
-      }
-
-      // -------------------------------------------------------------------------
-      // SECTION 4 — HOW IT WORKS (Verified Benchmark)
-      // -------------------------------------------------------------------------
-      const howTarget = sectionHowRef.current;
-      if (howTarget) {
-        setupHorizonRise(howTarget.querySelector('.how-header') || howTarget);
-        const firstCard = howTarget.querySelector('.how-step-card');
-        const cardContainer = firstCard?.parentElement || howTarget;
-        const stepCards = howTarget.querySelectorAll('.how-step-card');
-        setupCardCascade(cardContainer, stepCards, {
-          y: 36,
-          scale: 0.975,
-          duration: 0.70,
-          stagger: 0.16,
-        });
-      }
-
-      // -------------------------------------------------------------------------
-      // SECTION 5 — VERTICALS (Built For Your Business)
-      // -------------------------------------------------------------------------
-      const vertTarget = sectionVerticalsRef.current;
-      if (vertTarget) {
-        setupHorizonRise(vertTarget.querySelector('.verticals-header') || vertTarget);
-
-        // Vertical card entrance glide
-        const vertCard = vertTarget.querySelector('.vertical-card');
-        if (vertCard && !prefersReducedMotion) {
-          gsap.fromTo(
-            vertCard,
-            { opacity: 0, y: 32, scale: 0.98 },
-            {
-              opacity: 1,
-              y: 0,
-              scale: 1,
-              duration: 0.75,
-              ease: 'power2.out',
-              scrollTrigger: {
-                trigger: vertCard,
-                start: 'top 80%',
-                toggleActions: 'play none none none',
-                once: true,
-              },
-              onComplete: () => {
-                gsap.set(vertCard, { clearProps: 'transform,opacity' });
-              },
-            }
-          );
-        }
-      }
-
-      // -------------------------------------------------------------------------
-      // SECTION 6 — DIFFERENTIATION PILLARS
-      // -------------------------------------------------------------------------
-      const diffTarget = sectionDiffRef.current;
-      if (diffTarget) {
-        setupHorizonRise(diffTarget.querySelector('.diff-header') || diffTarget);
-        const firstPillar = diffTarget.querySelector('.pillar-card');
-        const pillarContainer = firstPillar?.parentElement || diffTarget;
-        const pillarCards = diffTarget.querySelectorAll('.pillar-card');
-        setupCardCascade(pillarContainer, pillarCards, {
-          y: 36,
-          scale: 0.975,
-          duration: 0.70,
-          stagger: 0.16,
-        });
-      }
-
-      // -------------------------------------------------------------------------
-      // SECTION 7 — DASHBOARD / KPI VITALS
-      // -------------------------------------------------------------------------
-      const dashTarget = sectionDashboardRef.current;
-      if (dashTarget) {
-        setupHorizonRise(dashTarget.querySelector('.dashboard-header') || dashTarget);
-        const firstDashCard = dashTarget.querySelector('.dashboard-card');
-        const dashGrid = firstDashCard?.parentElement || dashTarget;
-        const dashCards = dashTarget.querySelectorAll('.dashboard-card');
-        setupCardCascade(dashGrid, dashCards, {
-          y: 32,
-          scale: 0.98,
-          duration: 0.65,
-          stagger: 0.14,
-        });
-      }
-
-      // -------------------------------------------------------------------------
-      // SECTION 8 — PRICING TIERS
-      // -------------------------------------------------------------------------
-      const pricingTarget = sectionPricingRef.current;
-      if (pricingTarget) {
-        setupHorizonRise(pricingTarget.querySelector('.pricing-header') || pricingTarget);
-        const firstPricingCard = pricingTarget.querySelector('.pricing-card');
-        const pricingGrid = firstPricingCard?.parentElement || pricingTarget;
-        const pricingCards = pricingTarget.querySelectorAll('.pricing-card');
-        setupCardCascade(pricingGrid, pricingCards, {
-          y: 36,
-          scale: 0.975,
-          duration: 0.75,
-          stagger: 0.18,
-        });
-      }
-
-      // -------------------------------------------------------------------------
-      // SECTION 9 — CREDIBILITY (Proven Foundation)
-      // -------------------------------------------------------------------------
-      const proofTarget = sectionProofRef.current;
-      if (proofTarget) {
-        setupHorizonRise(proofTarget.querySelector('.credibility-header') || proofTarget);
-        const credCard = proofTarget.querySelector('.credibility-card');
-        if (credCard && !prefersReducedMotion) {
-          gsap.fromTo(
-            credCard,
-            { opacity: 0, y: 32, scale: 0.985 },
-            {
-              opacity: 1,
-              y: 0,
-              scale: 1,
-              duration: 0.75,
-              ease: 'power2.out',
-              scrollTrigger: {
-                trigger: credCard,
-                start: 'top 80%',
-                toggleActions: 'play none none none',
-                once: true,
-              },
-              onComplete: () => {
-                gsap.set(credCard, { clearProps: 'transform,opacity' });
-              },
-            }
-          );
-        }
-      }
-
-      // -------------------------------------------------------------------------
-      // SECTION 10 — FAQ (Questions & Answers)
-      // -------------------------------------------------------------------------
-      const faqTarget = sectionFaqRef.current;
-      if (faqTarget) {
-        setupHorizonRise(faqTarget.querySelector('.faq-header') || faqTarget);
-        const firstFaq = faqTarget.querySelector('.faq-item');
-        const faqList = firstFaq?.parentElement || faqTarget;
-        const faqItems = faqTarget.querySelectorAll('.faq-item');
-        setupCardCascade(faqList, faqItems, {
-          y: 24,
-          scale: 0.99,
-          duration: 0.55,
-          stagger: 0.10,
-        });
-      }
-
-      // -------------------------------------------------------------------------
-      // SECTION 11 — FINAL CTA
-      // -------------------------------------------------------------------------
-      const finalCtaTarget = sectionFinalCtaRef.current;
-      if (finalCtaTarget) {
-        setupHorizonRise(finalCtaTarget.querySelector('.final-cta-header') || finalCtaTarget);
       }
 
       // Synchronize trigger coordinates with document height and layout
       ScrollTrigger.refresh();
-
-      // Subsequent deferred refresh once fonts, swipers, and dynamic images settle
-      if (typeof document !== 'undefined' && document.fonts) {
-        document.fonts.ready.then(() => {
-          ScrollTrigger.refresh();
-        });
-      }
-
-      const delayedRefreshTimer1 = setTimeout(() => {
-        ScrollTrigger.refresh();
-      }, 150);
-
-      const delayedRefreshTimer2 = setTimeout(() => {
-        ScrollTrigger.refresh();
-      }, 450);
-
-      return () => {
-        clearTimeout(delayedRefreshTimer1);
-        clearTimeout(delayedRefreshTimer2);
-      };
     });
 
-    return () => ctx.revert();
-  }, []);
+    let fontsCancelled = false;
+    if (typeof document !== 'undefined' && document.fonts) {
+      document.fonts.ready.then(() => {
+        if (!fontsCancelled) {
+          ScrollTrigger.refresh();
+          refreshSectionOffsets();
+        }
+      });
+    }
+
+    const delayedRefreshTimer = setTimeout(() => {
+      ScrollTrigger.refresh();
+      refreshSectionOffsets();
+    }, 250);
+
+    return () => {
+      fontsCancelled = true;
+      clearTimeout(delayedRefreshTimer);
+      ctx.revert();
+    };
+  }, [lang, refreshSectionOffsets]);
 
   return (
     <div
@@ -730,12 +954,18 @@ export default function PageShell({
         {/* Primary Hero Warm Terracotta Glow (Centered on mobile, framed on right for desktop) */}
         <div
           ref={heroGlowRef}
-          className="absolute top-[3vw] sm:top-[5vw] left-1/2 -translate-x-1/2 lg:translate-x-0 lg:left-auto lg:right-[12vw] w-[460px] sm:w-[680px] lg:w-[1050px] h-[460px] sm:h-[680px] lg:h-[950px] rounded-full bg-[#b85438]/12 blur-[120px] lg:blur-[160px] will-change-transform"
+          className="absolute -top-[8vw] sm:-top-[6vw] left-1/2 -translate-x-1/2 lg:translate-x-0 lg:left-auto lg:right-[2vw] w-[720px] sm:w-[980px] lg:w-[1380px] h-[720px] sm:h-[980px] lg:h-[1260px] pointer-events-none"
+          style={{
+            background: 'radial-gradient(circle at center, rgba(184, 84, 56, 0.14) 0%, rgba(184, 84, 56, 0.05) 42%, transparent 70%)',
+          }}
         />
 
         {/* Soft Ambient Reach */}
         <div
-          className="absolute top-[8vw] sm:top-[12vw] left-1/2 -translate-x-1/2 lg:translate-x-0 lg:left-auto lg:right-[28vw] w-[350px] sm:w-[550px] lg:w-[750px] h-[350px] sm:h-[550px] lg:h-[750px] rounded-full bg-[#b85438]/05 blur-[120px] lg:blur-[150px] will-change-transform pointer-events-none"
+          className="absolute -top-[2vw] sm:top-[2vw] left-1/2 -translate-x-1/2 lg:translate-x-0 lg:left-auto lg:right-[18vw] w-[580px] sm:w-[820px] lg:w-[1060px] h-[580px] sm:h-[820px] lg:h-[1060px] pointer-events-none"
+          style={{
+            background: 'radial-gradient(circle at center, rgba(184, 84, 56, 0.06) 0%, rgba(184, 84, 56, 0.02) 45%, transparent 70%)',
+          }}
         />
 
         {/* Subtle Architectural Stipple Grain Texture */}
@@ -752,22 +982,34 @@ export default function PageShell({
       <div className="absolute inset-0 pointer-events-none -z-10 overflow-hidden">
         {/* Glow Accent 1: Problem / Shift Transition (Warm Terracotta Accent) */}
         <div
-          className="absolute top-[18%] -left-[10vw] w-[500px] sm:w-[750px] h-[500px] sm:h-[750px] rounded-full bg-[#b85438]/06 blur-[160px] will-change-transform"
+          className="ambient-glow-orb absolute top-[16%] -left-[14vw] w-[760px] sm:w-[1060px] h-[760px] sm:h-[1060px]"
+          style={{
+            background: 'radial-gradient(circle at center, rgba(184, 84, 56, 0.07) 0%, rgba(184, 84, 56, 0.025) 45%, transparent 72%)',
+          }}
         />
 
         {/* Glow Accent 2: Shift Unified Core (Warm Terracotta Accent) */}
         <div
-          className="absolute top-[34%] -right-[5vw] w-[450px] sm:w-[650px] h-[450px] sm:h-[650px] rounded-full bg-[#b85438]/06 blur-[160px] will-change-transform"
+          className="ambient-glow-orb absolute top-[32%] -right-[10vw] w-[700px] sm:w-[960px] h-[700px] sm:h-[960px]"
+          style={{
+            background: 'radial-gradient(circle at center, rgba(184, 84, 56, 0.07) 0%, rgba(184, 84, 56, 0.025) 45%, transparent 72%)',
+          }}
         />
 
         {/* Glow Accent 3: Verticals & Interactive Floor Desk (Subtle Amber/Terracotta glow) */}
         <div
-          className="absolute top-[56%] -left-[8vw] w-[500px] sm:w-[700px] h-[500px] sm:h-[700px] rounded-full bg-[#b85438]/05 blur-[160px] will-change-transform"
+          className="ambient-glow-orb absolute top-[54%] -left-[12vw] w-[760px] sm:w-[1000px] h-[760px] sm:h-[1000px]"
+          style={{
+            background: 'radial-gradient(circle at center, rgba(184, 84, 56, 0.06) 0%, rgba(184, 84, 56, 0.02) 45%, transparent 72%)',
+          }}
         />
 
         {/* Glow Accent 4: Pricing & Final CTA (Warm Terracotta Accent) */}
         <div
-          className="absolute top-[78%] right-[5vw] w-[550px] sm:w-[800px] h-[550px] sm:h-[800px] rounded-full bg-[#b85438]/09 blur-[160px] will-change-transform"
+          className="ambient-glow-orb absolute top-[76%] right-[0vw] w-[820px] sm:w-[1120px] h-[820px] sm:h-[1120px]"
+          style={{
+            background: 'radial-gradient(circle at center, rgba(184, 84, 56, 0.10) 0%, rgba(184, 84, 56, 0.035) 45%, transparent 72%)',
+          }}
         />
       </div>
 
@@ -786,21 +1028,22 @@ export default function PageShell({
           id="atrium-nav"
           className={`w-full transition-all duration-300 ease-out flex items-center justify-between rounded-full border ${
             isScrolled
-              ? 'py-2 px-3.5 sm:px-5 bg-black/90 backdrop-blur-2xl backdrop-saturate-150 border-white/[0.12] shadow-[0_12px_40px_rgba(0,0,0,0.7),inset_0_1px_0_rgba(255,255,255,0.12)]'
-              : 'py-2.5 px-4 sm:px-6 bg-black/80 backdrop-blur-xl backdrop-saturate-125 border-white/[0.08] shadow-[0_8px_32px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.06)]'
+              ? 'py-2 px-3.5 sm:px-5 bg-black/92 border-white/[0.12] shadow-[0_12px_40px_rgba(0,0,0,0.7),inset_0_1px_0_rgba(255,255,255,0.12)]'
+              : 'py-2.5 px-4 sm:px-6 bg-black/85 border-white/[0.08] shadow-[0_8px_32px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.06)]'
           }`}
         >
-          <div
+          <button
+            type="button"
             onClick={() => {
               scrollTo('section-hero');
               setIsMobileMenuOpen(false);
             }}
-            className="flex items-center cursor-pointer group shrink-0"
+            className="flex items-center cursor-pointer group shrink-0 text-left rtl:text-right focus:outline-none focus-visible:ring-2 focus-visible:ring-[#b85438] rounded-full"
             aria-label="Atrium Home"
           >
-            {/* Official Atrium Logo with transparent background and BY STOA STUDIO */}
+            {/* Official Atrium Logo with transparent background and BY FROM SCRATCH */}
             <AtriumBrandLogo size={28} showText={true} />
-          </div>
+          </button>
 
           {/* Desktop Anchor Navigation */}
           <nav
@@ -886,8 +1129,30 @@ export default function PageShell({
             </button>
           </nav>
 
-          {/* Action Controls: Compact Walkthrough button & Mobile Menu Toggle */}
+          {/* Action Controls: Desktop Language Switcher, Compact Walkthrough button & Mobile Menu Toggle */}
           <div className="flex items-center gap-2 shrink-0">
+            <div
+              role="group"
+              aria-label="Language"
+              className="hidden md:flex items-center gap-0.5 bg-white/[0.05] p-0.5 rounded-full border border-white/[0.1]"
+            >
+              {(['en', 'fr', 'ar'] as Language[]).map((code) => (
+                <button
+                  key={code}
+                  type="button"
+                  onClick={() => onLanguageChange(code)}
+                  aria-pressed={lang === code}
+                  className={`px-2 py-1 rounded-full text-[10px] font-mono font-semibold uppercase transition cursor-pointer ${
+                    lang === code
+                      ? 'bg-[#b85438] text-white shadow-sm'
+                      : 'text-stone-400 hover:text-white'
+                  }`}
+                >
+                  {code}
+                </button>
+              ))}
+            </div>
+
             <button
               type="button"
               onClick={onOpenDemo}
@@ -918,10 +1183,10 @@ export default function PageShell({
                 scrollTo('section-proof-strip');
                 setIsMobileMenuOpen(false);
               }}
-              className="text-left px-3 py-2.5 rounded-lg text-stone-300 hover:text-white hover:bg-white/[0.06] transition flex items-center justify-between"
+              className="text-left rtl:text-right px-3 py-2.5 rounded-lg text-stone-300 hover:text-white hover:bg-white/[0.06] transition flex items-center justify-between"
             >
               <span>{content.nav.proof}</span>
-              <ChevronRight className="w-3.5 h-3.5 text-stone-500" />
+              <ChevronRight className="w-3.5 h-3.5 text-stone-500 rtl:rotate-180" />
             </button>
             <button
               type="button"
@@ -929,10 +1194,10 @@ export default function PageShell({
                 scrollTo('section-problem');
                 setIsMobileMenuOpen(false);
               }}
-              className="text-left px-3 py-2.5 rounded-lg text-stone-300 hover:text-white hover:bg-white/[0.06] transition flex items-center justify-between"
+              className="text-left rtl:text-right px-3 py-2.5 rounded-lg text-stone-300 hover:text-white hover:bg-white/[0.06] transition flex items-center justify-between"
             >
               <span>{content.nav.problem}</span>
-              <ChevronRight className="w-3.5 h-3.5 text-stone-500" />
+              <ChevronRight className="w-3.5 h-3.5 text-stone-500 rtl:rotate-180" />
             </button>
             <button
               type="button"
@@ -940,10 +1205,10 @@ export default function PageShell({
                 scrollTo('section-shift');
                 setIsMobileMenuOpen(false);
               }}
-              className="text-left px-3 py-2.5 rounded-lg text-stone-300 hover:text-white hover:bg-white/[0.06] transition flex items-center justify-between"
+              className="text-left rtl:text-right px-3 py-2.5 rounded-lg text-stone-300 hover:text-white hover:bg-white/[0.06] transition flex items-center justify-between"
             >
               <span>{content.nav.shift}</span>
-              <ChevronRight className="w-3.5 h-3.5 text-stone-500" />
+              <ChevronRight className="w-3.5 h-3.5 text-stone-500 rtl:rotate-180" />
             </button>
             <button
               type="button"
@@ -951,10 +1216,10 @@ export default function PageShell({
                 scrollTo('section-how-it-works');
                 setIsMobileMenuOpen(false);
               }}
-              className="text-left px-3 py-2.5 rounded-lg text-stone-300 hover:text-white hover:bg-white/[0.06] transition flex items-center justify-between"
+              className="text-left rtl:text-right px-3 py-2.5 rounded-lg text-stone-300 hover:text-white hover:bg-white/[0.06] transition flex items-center justify-between"
             >
               <span>{content.nav.howItWorks}</span>
-              <ChevronRight className="w-3.5 h-3.5 text-stone-500" />
+              <ChevronRight className="w-3.5 h-3.5 text-stone-500 rtl:rotate-180" />
             </button>
             <button
               type="button"
@@ -962,10 +1227,10 @@ export default function PageShell({
                 scrollTo('section-verticals');
                 setIsMobileMenuOpen(false);
               }}
-              className="text-left px-3 py-2.5 rounded-lg text-stone-300 hover:text-white hover:bg-white/[0.06] transition flex items-center justify-between"
+              className="text-left rtl:text-right px-3 py-2.5 rounded-lg text-stone-300 hover:text-white hover:bg-white/[0.06] transition flex items-center justify-between"
             >
               <span>{content.nav.verticals}</span>
-              <ChevronRight className="w-3.5 h-3.5 text-stone-500" />
+              <ChevronRight className="w-3.5 h-3.5 text-stone-500 rtl:rotate-180" />
             </button>
             <button
               type="button"
@@ -973,10 +1238,10 @@ export default function PageShell({
                 scrollTo('section-differentiation');
                 setIsMobileMenuOpen(false);
               }}
-              className="text-left px-3 py-2.5 rounded-lg text-stone-300 hover:text-white hover:bg-white/[0.06] transition flex items-center justify-between"
+              className="text-left rtl:text-right px-3 py-2.5 rounded-lg text-stone-300 hover:text-white hover:bg-white/[0.06] transition flex items-center justify-between"
             >
               <span>{content.nav.whyAtrium}</span>
-              <ChevronRight className="w-3.5 h-3.5 text-stone-500" />
+              <ChevronRight className="w-3.5 h-3.5 text-stone-500 rtl:rotate-180" />
             </button>
             <button
               type="button"
@@ -984,10 +1249,10 @@ export default function PageShell({
                 scrollTo('section-pricing');
                 setIsMobileMenuOpen(false);
               }}
-              className="text-left px-3 py-2.5 rounded-lg text-stone-300 hover:text-white hover:bg-white/[0.06] transition flex items-center justify-between"
+              className="text-left rtl:text-right px-3 py-2.5 rounded-lg text-stone-300 hover:text-white hover:bg-white/[0.06] transition flex items-center justify-between"
             >
               <span>{content.nav.pricing}</span>
-              <ChevronRight className="w-3.5 h-3.5 text-stone-500" />
+              <ChevronRight className="w-3.5 h-3.5 text-stone-500 rtl:rotate-180" />
             </button>
 
             {/* Bottom controls: Language selector and Walkthrough trigger */}
@@ -1052,6 +1317,21 @@ export default function PageShell({
           ref={sectionHeroRef}
           className="sticky top-0 z-10 w-full h-[100dvh] bg-black overflow-hidden flex flex-col justify-start lg:justify-center pt-20 sm:pt-24 lg:pt-0"
         >
+          {/* Lightweight Mobile/Tablet Architectural Backdrop Accent (< 1024px where 3D layer is omitted) */}
+          <div
+            aria-hidden="true"
+            className="lg:hidden absolute inset-0 z-0 pointer-events-none overflow-hidden"
+          >
+            <div
+              className="absolute bottom-[-8%] right-[-18%] w-[360px] sm:w-[480px] h-[360px] sm:h-[480px] rounded-full border border-[#b85438]/15"
+              style={{
+                background: 'radial-gradient(circle at center, rgba(184, 84, 56, 0.16) 0%, rgba(184, 84, 56, 0.05) 45%, transparent 72%)',
+              }}
+            />
+            <div className="absolute bottom-[4%] right-[-6%] w-[240px] sm:w-[320px] h-[240px] sm:h-[320px] rounded-full border border-white/[0.06]" />
+            <div className="absolute bottom-[16%] right-[6%] w-[120px] sm:w-[160px] h-[120px] sm:h-[160px] rounded-full border border-[#e06b48]/20" />
+          </div>
+
           {/* Full-bleed 3D Scene Layer: Desktop-only (lg+), completely excluded on mobile */}
           {hero3DNode && (
             <div className="hero-3d-layer hidden lg:block absolute inset-0 z-0 pointer-events-none will-change-transform">
@@ -1068,21 +1348,23 @@ export default function PageShell({
                 <span>{content.hero.badge}</span>
               </div>
 
-              {/* Headline: Atrium alone in terracotta, as a service beneath it */}
+              {/* Headline: Atrium alone in terracotta, as a service beneath it (word-by-word masked horizon rise) */}
               <h1 className="hero-headline font-editorial text-4xl sm:text-6xl lg:text-7xl xl:text-8xl font-extrabold tracking-tight leading-[1.0] mb-3 sm:mb-4">
-                <span className="block text-[#b85438]">{content.hero.brandName}</span>
+                <span className="block text-[#b85438]">
+                  <WordMaskText text={content.hero.brandName} groupClassName="hero-word" />
+                </span>
                 <span className="block text-stone-100 text-2xl sm:text-4xl lg:text-5xl font-light tracking-normal mt-0.5">
-                  {content.hero.serviceLine}
+                  <WordMaskText text={content.hero.serviceLine} groupClassName="hero-word" />
                 </span>
               </h1>
 
-              {/* Subheadline: Tightened spacing, clean contrast */}
+              {/* Subheadline: Tightened spacing, clean contrast (word-by-word masked horizon rise) */}
               <p className="hero-subheadline text-xs sm:text-sm text-stone-300 font-normal leading-relaxed font-sans max-w-md mb-4 sm:mb-6">
-                {content.hero.subheadline}
+                <WordMaskText text={content.hero.subheadline} groupClassName="hero-sub-word" />
               </p>
 
               {/* ONE Primary CTA Button — Touch-friendly thumb target on mobile */}
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 sm:gap-3.5 mb-3 sm:mb-6">
+              <div className="hero-cta-group flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 sm:gap-3.5 mb-3 sm:mb-6">
                 <button
                   type="button"
                   onClick={onOpenDemo}
@@ -1092,7 +1374,7 @@ export default function PageShell({
                   <span className="whitespace-nowrap">{content.hero.ctaButton}</span>
                 </button>
 
-                <span className="text-[10px] sm:text-[11px] font-mono text-stone-400 text-center sm:text-left whitespace-nowrap">
+                <span className="text-[10px] sm:text-[11px] font-mono text-stone-400 text-center sm:text-left rtl:sm:text-right whitespace-nowrap">
                   {lang === 'ar'
                     ? 'تجربة مجانية 14 يوماً • بدون بطاقة بنكية • إعداد فوري'
                     : lang === 'fr'
@@ -1103,13 +1385,13 @@ export default function PageShell({
             </div>
 
             {/* Scroll Indicator Prompt with clear, unobstructed background */}
-            <div className="pt-2 sm:pt-3 lg:pt-4 flex items-center relative z-10 pointer-events-auto">
+            <div className="hero-scroll-hint pt-2 sm:pt-3 lg:pt-4 flex items-center relative z-10 pointer-events-auto">
               <button
                 type="button"
                 onClick={() => scrollTo('section-proof-strip')}
                 className="flex items-center gap-2 text-[11px] font-mono text-stone-400 hover:text-stone-200 transition cursor-pointer group py-1"
               >
-                <ArrowDownRight className="w-3.5 h-3.5 text-[#b85438] group-hover:translate-y-0.5 group-hover:translate-x-0.5 transition-transform shrink-0" />
+                <ArrowDownRight className="w-3.5 h-3.5 text-[#b85438] group-hover:translate-y-0.5 group-hover:translate-x-0.5 rtl:-scale-x-100 transition-transform shrink-0" />
                 <span className="whitespace-nowrap">{content.hero.scrollHint}</span>
               </button>
             </div>
@@ -1123,7 +1405,7 @@ export default function PageShell({
         <section
           id="section-proof-strip"
           ref={sectionProofStripRef}
-          className="relative z-20 w-full min-h-[100dvh] py-16 sm:py-20 lg:py-24 px-6 sm:px-12 border-t border-stone-800/80 bg-[#09090b] shadow-[0_-40px_90px_rgba(0,0,0,0.98),0_-1px_0_rgba(255,255,255,0.06)] flex flex-col justify-center will-change-transform"
+          className="relative z-20 w-full min-h-[100dvh] py-16 sm:py-20 lg:py-24 px-6 sm:px-12 border-t border-stone-800/80 bg-[#09090b] shadow-[0_-40px_90px_rgba(0,0,0,0.98),0_-1px_0_rgba(255,255,255,0.06)] flex flex-col justify-center"
         >
           {/* Ambient studio light catch on rising sheet edge */}
           <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-5xl h-px bg-gradient-to-r from-transparent via-[#b85438]/50 to-transparent pointer-events-none" />
@@ -1150,15 +1432,16 @@ export default function PageShell({
                     onClick={() => scrollTo('section-verticals')}
                     className="proof-explore-link shrink-0 text-xs font-mono text-[#e06b48] hover:text-[#f28e72] transition underline underline-offset-4 flex items-center gap-1.5 cursor-pointer"
                   >
-                    <span>Explore deep interactive setups</span>
-                    <ChevronRight className="w-3.5 h-3.5" />
+                    <span>{ui.proofStrip.exploreLink}</span>
+                    <ChevronRight className="w-3.5 h-3.5 rtl:rotate-180" />
                   </button>
                 </div>
               </div>
 
-              <div className="lg:col-span-7">
+              <div className="proof-visual-panel lg:col-span-7">
                 <CategoryCardSwiper
                   categories={content.proofStrip.categories}
+                  lang={lang}
                   onSelectCategory={(catId) => {
                     setActiveVertical(catId);
                     scrollTo('section-verticals');
@@ -1183,8 +1466,8 @@ export default function PageShell({
         <div className="max-w-7xl mx-auto w-full">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
             {/* Visuals on Left */}
-            <div className="lg:col-span-7 lg:order-1">
-              <ProblemCardSwiper points={content.problem.points} />
+            <div className="problem-visual-panel lg:col-span-7 lg:order-1">
+              <ProblemCardSwiper points={content.problem.points} lang={lang} />
             </div>
 
             {/* Narrative on Right */}
@@ -1202,12 +1485,15 @@ export default function PageShell({
                 ctaButton={{ text: content.tryStartButton, onClick: onOpenDemo }}
               />
 
-              <div className="p-5 rounded-2xl bg-black/25 border border-white/10 text-xs text-stone-100 font-sans leading-relaxed space-y-2">
+              <div className="problem-callout p-5 rounded-2xl bg-black/25 border border-white/10 text-xs text-stone-100 font-sans leading-relaxed space-y-2 text-left rtl:text-right">
                 <div className="text-[10px] font-mono text-amber-200 uppercase tracking-wider font-semibold">
-                  Field Reality Assessment
+                  {ui.problem.calloutTitle}
                 </div>
                 <p>
-                  Scattered WhatsApp messages, manual pen-and-paper registers, and unlinked payment logs create blind spots that bleed profits daily. Atrium eliminates this operational drift.
+                  <WordMaskText
+                    text={ui.problem.calloutBody}
+                    groupClassName="callout-word"
+                  />
                 </p>
               </div>
             </div>
@@ -1242,17 +1528,20 @@ export default function PageShell({
                 ctaButton={{ text: content.tryStartButton, onClick: onOpenDemo }}
               />
 
-              <div className="shift-callout p-6 rounded-2xl bg-white border border-stone-200 shadow-md flex items-center gap-3.5 text-xs font-mono text-stone-700">
+              <div className="shift-callout p-6 rounded-2xl bg-white border border-stone-200 shadow-md flex items-center gap-3.5 text-xs font-mono text-stone-700 text-left rtl:text-right">
                 <div className="w-3.5 h-3.5 rotate-45 bg-[#b85438] shadow-[0_0_12px_rgba(184,84,56,0.4)] shrink-0" />
                 <span className="font-semibold text-stone-900">
-                  THE UNIFIED ATRIUM CORE: 4 scattered vectors resolve into 1 central real-time truth.
+                  <WordMaskText
+                    text={ui.shift.coreBadge}
+                    groupClassName="callout-word"
+                  />
                 </span>
               </div>
             </div>
 
             {/* Visuals on Right */}
-            <div className="lg:col-span-7 lg:order-2">
-              <ShiftCardSwiper points={content.shift.points} theme="light" />
+            <div className="shift-visual-panel lg:col-span-7 lg:order-2">
+              <ShiftCardSwiper points={content.shift.points} lang={lang} theme="light" />
             </div>
           </div>
         </div>
@@ -1267,9 +1556,9 @@ export default function PageShell({
         ref={sectionFeelingRef}
         className="relative z-20 w-full min-h-[60vh] sm:min-h-[75vh] py-20 px-6 sm:px-12 text-center border-t border-stone-800/80 bg-[#0d0e12] shadow-[0_-30px_70px_rgba(0,0,0,0.95)] flex items-center justify-center"
       >
-        <div className="max-w-3xl mx-auto overflow-hidden py-1">
+        <div className="max-w-3xl mx-auto py-1">
           <p className="section-headline font-editorial text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-stone-300 leading-tight">
-            {content.feelingLine}
+            <WordMaskText text={content.feelingLine} groupClassName="feeling-word" />
           </p>
         </div>
       </div>
@@ -1332,12 +1621,12 @@ export default function PageShell({
           </div>
 
           {/* Active Vertical Display Card */}
-          <div className="vertical-card grid grid-cols-1 lg:grid-cols-12 gap-8 p-6 sm:p-10 rounded-3xl bg-white border border-stone-200 shadow-xl text-stone-900">
-            <div className="lg:col-span-6 flex flex-col justify-between space-y-6">
+          <div className="vertical-card grid grid-cols-1 lg:grid-cols-12 gap-8 p-6 sm:p-10 rounded-3xl bg-white border border-stone-200 shadow-xl text-stone-900 text-left rtl:text-right">
+            <div key={`vert-left-${lang}-${activeVertical}`} className="lg:col-span-6 flex flex-col justify-between space-y-6 animate-slide-in">
               <div>
                 <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#b85438]/10 text-[#b85438] font-mono text-[11px] font-semibold mb-4">
                   <span className="w-1.5 h-1.5 rounded-full bg-[#b85438]" />
-                  <span>INDUSTRY SPECIFIC WORKFLOW</span>
+                  <span>{ui.verticals.badgeLabel}</span>
                 </div>
 
                 <h3 className="text-2xl sm:text-3xl font-editorial font-bold text-stone-950 mb-3 tracking-tight">
@@ -1351,16 +1640,16 @@ export default function PageShell({
                 {/* Research / Operational Insight block */}
                 <div className="p-4 rounded-xl bg-stone-50 border border-stone-200 mb-5 text-xs text-stone-700 font-sans leading-relaxed">
                   <div className="text-[10px] font-mono text-[#b85438] uppercase tracking-wider mb-1.5 font-bold">
-                    Field Operational Insight
+                    {ui.verticals.insightLabel}
                   </div>
                   <p className="italic text-stone-700">
-                    "{currentVertical.operationalInsight}"
+                    &ldquo;{currentVertical.operationalInsight}&rdquo;
                   </p>
                 </div>
 
                 <div className="p-3.5 rounded-xl bg-stone-100 border border-stone-200 mb-6">
                   <div className="text-[10px] font-mono text-stone-500 uppercase tracking-wider mb-1 font-semibold">
-                    PRIMARY OPERATIONAL FOCUS
+                    {ui.verticals.focusLabel}
                   </div>
                   <div className="text-base font-semibold text-[#b85438] font-mono">
                     {currentVertical.metricPreview}
@@ -1383,15 +1672,15 @@ export default function PageShell({
             {/* Simulated Live Floor Dashboard Mock */}
             <div className="lg:col-span-6 rounded-2xl bg-[#0e1017] border border-stone-800 p-6 flex flex-col justify-between shadow-2xl text-stone-200">
               <div>
-                <div className="flex items-center justify-between pb-3 mb-4 border-b border-stone-800/80 text-xs font-mono text-stone-400">
-                  <span>ATRIUM FLOOR DESK // {currentVertical.name.toUpperCase()}</span>
+                <div className="flex flex-wrap items-center justify-between gap-2 pb-3 mb-4 border-b border-stone-800/80 text-xs font-mono text-stone-400">
+                  <span>{ui.verticals.floorDeskPrefix} {currentVertical.name.toUpperCase()}</span>
                   <span className="text-[#f28e72] flex items-center gap-1.5 text-[11px] font-semibold">
                     <span className="w-1.5 h-1.5 rounded-full bg-[#e06b48]" />
-                    SAMPLE INTERFACE
+                    {ui.verticals.sampleInterface}
                   </span>
                 </div>
 
-                <div className="grid grid-cols-3 gap-3 mb-6">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
                   {currentVertical.sampleKpis.map((kpi, idx) => (
                     <div key={idx} className="p-3 rounded bg-stone-900/80 border border-stone-800/70">
                       <div className="text-[10px] font-mono text-stone-500 truncate mb-1">
@@ -1405,25 +1694,32 @@ export default function PageShell({
                 </div>
 
                 <div className="space-y-2 text-xs font-mono">
-                  <div className="text-[10px] text-stone-500 uppercase">Simulated Activity Stream</div>
-                  <div className="p-2 rounded bg-stone-900/50 border border-stone-800/50 flex items-center justify-between text-stone-300 text-[11px]">
-                    <span>Sample Register Action</span>
-                    <span className="text-emerald-400">Processed</span>
-                  </div>
-                  <div className="p-2 rounded bg-stone-900/50 border border-stone-800/50 flex items-center justify-between text-stone-300 text-[11px]">
-                    <span>Sample Client Notification</span>
-                    <span className="text-[#e06b48]">Dispatched</span>
-                  </div>
-                  <div className="p-2 rounded bg-stone-900/50 border border-stone-800/50 flex items-center justify-between text-stone-300 text-[11px]">
-                    <span>Sample Shift Handoff Log</span>
-                    <span className="text-stone-400">Reconciled</span>
-                  </div>
+                  <div className="text-[10px] text-stone-500 uppercase">{ui.verticals.activityTitle}</div>
+                  {ui.verticals.activities.map((act, idx) => (
+                    <div
+                      key={idx}
+                      className="p-2 rounded bg-stone-900/50 border border-stone-800/50 flex items-center justify-between text-stone-300 text-[11px]"
+                    >
+                      <span>{act.label}</span>
+                      <span
+                        className={
+                          act.tone === 'emerald'
+                            ? 'text-emerald-400'
+                            : act.tone === 'accent'
+                            ? 'text-[#e06b48]'
+                            : 'text-stone-400'
+                        }
+                      >
+                        {act.status}
+                      </span>
+                    </div>
+                  ))}
                 </div>
               </div>
 
-              <div className="pt-4 mt-4 border-t border-stone-800 text-[10px] font-mono text-stone-500 flex justify-between">
-                <span>Illustrative sample data</span>
-                <span>Mode: Offline-First Engine</span>
+              <div className="pt-4 mt-4 border-t border-stone-800 text-[10px] font-mono text-stone-500 flex justify-between gap-2">
+                <span>{ui.verticals.footerLeft}</span>
+                <span>{ui.verticals.footerRight}</span>
               </div>
             </div>
           </div>
@@ -1448,18 +1744,18 @@ export default function PageShell({
               {content.differentiation.pillars.map((pillar) => (
                 <div
                   key={pillar.number}
-                  className="pillar-card p-6 sm:p-7 rounded-2xl bg-stone-950/90 backdrop-blur-md border border-stone-800 hover:border-[#b85438]/60 transition-all duration-200 flex flex-col justify-between shadow-xl"
+                  className="pillar-card p-6 sm:p-7 rounded-2xl bg-stone-950/90 border border-stone-800 hover:border-[#b85438]/60 transition-all duration-200 flex flex-col justify-between shadow-xl text-left rtl:text-right"
                 >
                   <div>
                     <div className="text-xs font-mono text-[#e06b48] font-bold mb-3 flex items-center gap-1.5">
                       <span className="w-1.5 h-1.5 rounded-full bg-[#b85438]" />
-                      <span>PILLAR 0{pillar.number}</span>
+                      <span>{ui.differentiation.pillarPrefix} 0{pillar.number}</span>
                     </div>
                     <h3 className="text-base sm:text-lg font-semibold text-stone-100 mb-2 leading-snug">
-                      {pillar.title}
+                      <WordMaskText text={pillar.title} groupClassName="card-word" />
                     </h3>
                     <p className="text-xs text-stone-400 leading-relaxed mb-5 font-sans">
-                      {pillar.explanation}
+                      <WordMaskText text={pillar.explanation} groupClassName="card-word" />
                     </p>
                   </div>
 
@@ -1486,12 +1782,15 @@ export default function PageShell({
                 ctaButton={{ text: content.tryStartButton, onClick: onOpenDemo }}
               />
 
-              <div className="p-5 rounded-2xl bg-stone-900/60 border border-stone-800 text-xs text-stone-300 font-sans leading-relaxed space-y-2.5">
+              <div className="diff-callout p-5 rounded-2xl bg-stone-900/60 border border-stone-800 text-xs text-stone-300 font-sans leading-relaxed space-y-2.5 text-left rtl:text-right">
                 <div className="text-[10px] font-mono text-[#e06b48] uppercase tracking-wider font-semibold">
-                  Zero Cloud Fragility
+                  {ui.differentiation.calloutTitle}
                 </div>
                 <p>
-                  Atrium treats the cloud as a synchronization convenience, never an existential operational requirement. When fiber cuts occur, your frontline registers stay at full speed without interruptions.
+                  <WordMaskText
+                    text={ui.differentiation.calloutBody}
+                    groupClassName="callout-word"
+                  />
                 </p>
               </div>
             </div>
@@ -1526,139 +1825,136 @@ export default function PageShell({
                 ctaButton={{ text: content.tryStartButton, onClick: onOpenDemo }}
               />
 
-              <div className="p-5 rounded-2xl bg-black/25 border border-white/10 text-xs text-stone-100 font-sans leading-relaxed space-y-2">
+              <div className="dashboard-callout p-5 rounded-2xl bg-black/25 border border-white/10 text-xs text-stone-100 font-sans leading-relaxed space-y-2 text-left rtl:text-right">
                 <div className="text-[10px] font-mono text-amber-200 uppercase tracking-wider font-semibold">
-                  Multi-Branch Telemetry
+                  {content.dashboard.tag}
                 </div>
                 <p>
-                  {content.dashboard.caption}
+                  <WordMaskText text={content.dashboard.caption} groupClassName="callout-word" />
                 </p>
               </div>
 
               {/* Filter Tabs on Terracotta */}
-              <div className="flex items-center gap-1.5 bg-black/30 border border-white/10 rounded-xl p-1 text-xs font-mono">
+              <div
+                role="tablist"
+                aria-label={content.dashboard.tag}
+                className="dashboard-filters flex flex-wrap items-center gap-1.5 bg-black/30 border border-white/10 rounded-xl p-1 text-xs font-mono"
+              >
                 <button
                   type="button"
+                  role="tab"
+                  aria-selected={activeKpiFilter === 'all'}
                   onClick={() => setActiveKpiFilter('all')}
                   className={`px-3 py-1.5 rounded-lg transition cursor-pointer text-xs ${
                     activeKpiFilter === 'all' ? 'bg-white text-stone-950 font-bold shadow' : 'text-stone-200 hover:text-white'
                   }`}
                 >
-                  All Vitals
+                  {ui.dashboard.filters.all}
                 </button>
                 <button
                   type="button"
+                  role="tab"
+                  aria-selected={activeKpiFilter === 'sales'}
                   onClick={() => setActiveKpiFilter('sales')}
                   className={`px-3 py-1.5 rounded-lg transition cursor-pointer text-xs ${
                     activeKpiFilter === 'sales' ? 'bg-white text-stone-950 font-bold shadow' : 'text-stone-200 hover:text-white'
                   }`}
                 >
-                  Cash &amp; Sales
+                  {ui.dashboard.filters.sales}
                 </button>
                 <button
                   type="button"
+                  role="tab"
+                  aria-selected={activeKpiFilter === 'staff'}
                   onClick={() => setActiveKpiFilter('staff')}
                   className={`px-3 py-1.5 rounded-lg transition cursor-pointer text-xs ${
                     activeKpiFilter === 'staff' ? 'bg-white text-stone-950 font-bold shadow' : 'text-stone-200 hover:text-white'
                   }`}
                 >
-                  Staff Comms
+                  {ui.dashboard.filters.staff}
                 </button>
               </div>
             </div>
 
             {/* Right Column: Large Interactive KPI Executive Dashboard Mockup */}
-            <div className="lg:col-span-8 rounded-3xl bg-stone-950/95 backdrop-blur-md border border-white/10 p-6 sm:p-8 shadow-2xl overflow-hidden">
+            <div className="dashboard-console lg:col-span-8 rounded-3xl bg-stone-950/95 border border-white/10 p-6 sm:p-8 shadow-2xl overflow-hidden text-left rtl:text-right">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-6 mb-6 border-b border-stone-800/80 gap-4">
                 <div>
-                  <div className="text-base font-semibold text-stone-100 font-mono flex items-center gap-2">
-                    <span>EXECUTIVE SUMMARY // CONSOLIDATED NETWORK</span>
+                  <div className="text-base font-semibold text-stone-100 font-mono flex flex-wrap items-center gap-2">
+                    <span>{ui.dashboard.summaryTitle}</span>
                     <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-stone-900 text-[#f28e72] font-semibold border border-stone-800">
-                      SAMPLE DATA
+                      {ui.dashboard.sampleBadge}
                     </span>
                   </div>
                   <div className="text-xs text-stone-400 font-sans mt-1">
-                    Live reconciled snapshot from edge SQLite databases
+                    {ui.dashboard.subtitle}
                   </div>
                 </div>
               </div>
 
-              {/* KPI Cards Grid */}
+              {/* KPI Cards Grid (Reactively filtered by activeKpiFilter) */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-                <SpotlightCard className="dashboard-card p-5 bg-stone-900/80 border-stone-800">
-                  <div className="text-xs font-mono text-stone-400 mb-1">TODAY&apos;S NET REVENUE (SAMPLE)</div>
-                  <div className="text-2xl font-bold font-mono text-stone-100">
-                    <AnimatedCounter end={240700} duration={1600} /> <span className="text-xs font-normal text-stone-400">DZD</span>
-                  </div>
-                  <div className="text-[11px] text-emerald-400 font-mono mt-2">
-                    ↑ +18.4% vs yesterday
-                  </div>
-                </SpotlightCard>
-
-                <SpotlightCard className="dashboard-card p-5 bg-stone-900/80 border-stone-800">
-                  <div className="text-xs font-mono text-stone-400 mb-1">CASH IN TILL (SAMPLE)</div>
-                  <div className="text-2xl font-bold font-mono text-stone-100">
-                    <AnimatedCounter end={86400} duration={1400} /> <span className="text-xs font-normal text-stone-400">DZD</span>
-                  </div>
-                  <div className="text-[11px] text-stone-300 font-mono mt-2">
-                    Zero discrepancy across 3 registers
-                  </div>
-                </SpotlightCard>
-
-                <SpotlightCard className="dashboard-card p-5 bg-stone-900/80 border-stone-800">
-                  <div className="text-xs font-mono text-stone-400 mb-1">ACTIVE CUSTOMERS ON FLOOR (SAMPLE)</div>
-                  <div className="text-2xl font-bold font-mono text-[#f28e72]">
-                    <AnimatedCounter end={54} duration={1200} /> <span className="text-xs font-normal text-stone-400">people</span>
-                  </div>
-                  <div className="text-[11px] text-stone-300 font-mono mt-2">
-                    Peak window: 17:00 – 20:30
-                  </div>
-                </SpotlightCard>
-
-                <SpotlightCard className="dashboard-card p-5 bg-stone-900/80 border-stone-800">
-                  <div className="text-xs font-mono text-stone-400 mb-1">AUTOMATED PAYROLL OWED (SAMPLE)</div>
-                  <div className="text-2xl font-bold font-mono text-stone-100">
-                    <AnimatedCounter end={34200} duration={1500} /> <span className="text-xs font-normal text-stone-400">DZD</span>
-                  </div>
-                  <div className="text-[11px] text-[#e06b48] font-mono mt-2">
-                    Tallied in real-time from services
-                  </div>
-                </SpotlightCard>
+                {ui.dashboard.cards
+                  .filter((card) => isDashboardMetricVisible(activeKpiFilter, card.category))
+                  .map((card) => (
+                    <SpotlightCard
+                      key={card.id}
+                      data-kpi-category={card.category}
+                      className="dashboard-card p-5 bg-stone-900/80 border-stone-800 animate-slide-in"
+                    >
+                      <div className="text-xs font-mono text-stone-400 mb-1">{card.label}</div>
+                      <div
+                        className={`text-2xl font-bold font-mono ${
+                          card.accent ? 'text-[#f28e72]' : 'text-stone-100'
+                        }`}
+                      >
+                        <AnimatedCounter end={card.end} duration={card.duration} delay={card.delay} />{' '}
+                        <span className="text-xs font-normal text-stone-400">{card.unit}</span>
+                      </div>
+                      <div
+                        className={`text-[11px] font-mono mt-2 ${
+                          card.tone === 'emerald'
+                            ? 'text-emerald-400'
+                            : card.tone === 'accent'
+                            ? 'text-[#e06b48]'
+                            : 'text-stone-300'
+                        }`}
+                      >
+                        {card.subtext}
+                      </div>
+                    </SpotlightCard>
+                  ))}
               </div>
 
               {/* Consolidated Location Breakdown Table */}
-              <div className="rounded-xl bg-stone-900/60 border border-stone-800/80 p-4 font-mono text-xs overflow-x-auto">
+              <div className="dashboard-table rounded-xl bg-stone-900/60 border border-stone-800/80 p-4 font-mono text-xs overflow-x-auto">
                 <div className="text-[11px] text-stone-400 uppercase tracking-wider mb-3">
-                  Live Branch Telemetry (Sample Data)
+                  {ui.dashboard.tableTitle}
                 </div>
-                <table className="w-full text-left min-w-[500px]">
+                <table className="w-full text-left rtl:text-right min-w-[500px]">
                   <thead>
                     <tr className="border-b border-stone-800 text-stone-400 text-[10px]">
-                      <th className="pb-2">BRANCH LOCATION</th>
-                      <th className="pb-2">FLOOR STATUS</th>
-                      <th className="pb-2">NETWORK SYNC</th>
-                      <th className="pb-2 text-right">DAILY GROSS</th>
+                      <th className="pb-2">{ui.dashboard.tableHeaders[0]}</th>
+                      <th className="pb-2">{ui.dashboard.tableHeaders[1]}</th>
+                      <th className="pb-2">{ui.dashboard.tableHeaders[2]}</th>
+                      <th className="pb-2 text-right rtl:text-left">{ui.dashboard.tableHeaders[3]}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-stone-800 text-stone-300">
-                    <tr>
-                      <td className="py-2.5 font-semibold text-stone-100">Branch 01 — Algiers Center</td>
-                      <td className="py-2.5 text-emerald-400">● 28 Active Clients</td>
-                      <td className="py-2.5 text-stone-400">Synchronized (1s ago)</td>
-                      <td className="py-2.5 text-right font-mono font-bold">142,500 DZD</td>
-                    </tr>
-                    <tr>
-                      <td className="py-2.5 font-semibold text-stone-100">Branch 02 — Oran Waterfront</td>
-                      <td className="py-2.5 text-emerald-400">● 19 Active Clients</td>
-                      <td className="py-2.5 text-stone-400">Synchronized (3s ago)</td>
-                      <td className="py-2.5 text-right font-mono font-bold">76,200 DZD</td>
-                    </tr>
-                    <tr>
-                      <td className="py-2.5 font-semibold text-stone-100">Branch 03 — Blida Express</td>
-                      <td className="py-2.5 text-amber-400">● 7 Active Clients</td>
-                      <td className="py-2.5 text-stone-400">Offline SQLite Buffer (Ready)</td>
-                      <td className="py-2.5 text-right font-mono font-bold">22,000 DZD</td>
-                    </tr>
+                    {ui.dashboard.rows.map((row, idx) => (
+                      <tr key={idx}>
+                        <td className="py-2.5 font-semibold text-stone-100">{row.branch}</td>
+                        <td
+                          className={`py-2.5 ${
+                            row.tone === 'emerald' ? 'text-emerald-400' : 'text-amber-400'
+                          }`}
+                        >
+                          {row.status}
+                        </td>
+                        <td className="py-2.5 text-stone-400">{row.sync}</td>
+                        <td className="py-2.5 text-right rtl:text-left font-mono font-bold">{row.gross}</td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>
@@ -1674,12 +1970,13 @@ export default function PageShell({
       {/* ------------------------------------------------------------- */}
       <section
         id="section-slider"
+        ref={sectionSliderRef}
         className="relative z-20 w-full py-24 sm:py-32 px-6 sm:px-12 border-t border-stone-200 bg-[#faf9f5] text-stone-900 shadow-inner flex items-center justify-center"
       >
         <div className="max-w-7xl mx-auto w-full">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
             {/* Left Column: Interactive Before/After Split-Screen Lens */}
-            <div className="lg:col-span-7">
+            <div className="slider-panel lg:col-span-7">
               <BeforeAfterSlider lang={lang} theme="light" />
             </div>
 
@@ -1687,10 +1984,10 @@ export default function PageShell({
             <div className="lg:col-span-5 space-y-6">
               <SectionHeader
                 icon={Sliders}
-                tag="SYSTEM TRANSFORMATION"
-                primary="Before & After"
-                accent="Operational Calm"
-                subline="Move the interactive divider to witness the tangible difference between chaotic point-of-sale friction and unified frontline serenity."
+                tag={ui.slider.tag}
+                primary={ui.slider.headlinePrimary}
+                accent={ui.slider.headlineAccent}
+                subline={ui.slider.subline}
                 align="left"
                 className="slider-header mb-0"
                 maskedHorizon={true}
@@ -1699,47 +1996,40 @@ export default function PageShell({
               />
 
               <div className="space-y-3.5 pt-2">
-                <div className="p-4 rounded-xl bg-white border border-stone-200 shadow-sm flex items-start gap-3.5">
-                  <div className="w-8 h-8 rounded-lg bg-rose-50 border border-rose-200/80 text-rose-600 flex items-center justify-center shrink-0 mt-0.5">
-                    <WifiOff className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <div className="text-xs font-semibold text-stone-900 font-mono mb-1">
-                      Zero Register Blind Spots
+                {ui.slider.checks.map((checkItem, idx) => {
+                  const iconBoxClass =
+                    idx === 0
+                      ? 'bg-rose-50 border-rose-200/80 text-rose-600'
+                      : idx === 1
+                      ? 'bg-amber-50 border-amber-200/80 text-amber-700'
+                      : 'bg-emerald-50 border-emerald-200/80 text-emerald-700';
+                  return (
+                    <div
+                      key={idx}
+                      className="slider-check-card p-4 rounded-xl bg-white border border-stone-200 shadow-sm flex items-start gap-3.5 text-left rtl:text-right"
+                    >
+                      <div
+                        className={`w-8 h-8 rounded-lg border flex items-center justify-center shrink-0 mt-0.5 ${iconBoxClass}`}
+                      >
+                        {idx === 0 ? (
+                          <WifiOff className="w-4 h-4" />
+                        ) : idx === 1 ? (
+                          <Clock className="w-4 h-4" />
+                        ) : (
+                          <Check className="w-4 h-4" />
+                        )}
+                      </div>
+                      <div>
+                        <div className="text-xs font-semibold text-stone-900 font-mono mb-1">
+                          <WordMaskText text={checkItem.title} groupClassName="card-word" />
+                        </div>
+                        <p className="text-xs text-stone-600 leading-relaxed font-sans">
+                          <WordMaskText text={checkItem.desc} groupClassName="card-word" />
+                        </p>
+                      </div>
                     </div>
-                    <p className="text-xs text-stone-600 leading-relaxed font-sans">
-                      Never stall a client queue due to intermittent Wi-Fi or regional DNS drops. Edge SQLite buffers persist every basket locally.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="p-4 rounded-xl bg-white border border-stone-200 shadow-sm flex items-start gap-3.5">
-                  <div className="w-8 h-8 rounded-lg bg-amber-50 border border-amber-200/80 text-amber-700 flex items-center justify-center shrink-0 mt-0.5">
-                    <Clock className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <div className="text-xs font-semibold text-stone-900 font-mono mb-1">
-                      Automated Shift Reconciliation
-                    </div>
-                    <p className="text-xs text-stone-600 leading-relaxed font-sans">
-                      Eliminate paper tally sheets and end-of-day discrepancy panic. Real-time register handoffs reconcile cash in under 90 seconds.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="p-4 rounded-xl bg-white border border-stone-200 shadow-sm flex items-start gap-3.5">
-                  <div className="w-8 h-8 rounded-lg bg-emerald-50 border border-emerald-200/80 text-emerald-700 flex items-center justify-center shrink-0 mt-0.5">
-                    <Check className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <div className="text-xs font-semibold text-stone-900 font-mono mb-1">
-                      Instant Multi-Branch Visibility
-                    </div>
-                    <p className="text-xs text-stone-600 leading-relaxed font-sans">
-                      Command revenue, inventory turnover, and staff commissions across all locations simultaneously from an executive telemetry view.
-                    </p>
-                  </div>
-                </div>
+                  );
+                })}
               </div>
             </div>
           </div>
@@ -1774,13 +2064,13 @@ export default function PageShell({
               />
 
               {/* Risk Reversal Assurance Banner */}
-              <div className="p-6 rounded-2xl bg-black/30 border border-white/10 text-stone-100 space-y-3 shadow-xl">
+              <div className="pricing-callout p-6 rounded-2xl bg-black/30 border border-white/10 text-stone-100 space-y-3 shadow-xl text-left rtl:text-right">
                 <div className="inline-flex items-center gap-2 text-xs font-mono text-emerald-300 font-semibold uppercase tracking-wider">
-                  <ShieldCheck className="w-4 h-4" />
-                  <span>ZERO RISK GUARANTEE</span>
+                  <ShieldCheck className="w-4 h-4 shrink-0" />
+                  <span>{ui.pricing.guaranteeBadge}</span>
                 </div>
                 <p className="text-xs sm:text-sm text-stone-100 font-sans leading-relaxed">
-                  {content.pricing.riskReversal}
+                  <WordMaskText text={content.pricing.riskReversal} groupClassName="callout-word" />
                 </p>
                 <div className="pt-2 border-t border-white/10 text-[11px] font-mono text-stone-300/80">
                   {content.pricing.billingNote}
@@ -1793,7 +2083,7 @@ export default function PageShell({
               {content.pricing.tiers.map((tier, idx) => (
                 <SpotlightCard
                   key={idx}
-                  className={`pricing-card p-6 sm:p-7 rounded-2xl flex flex-col justify-between transition-all duration-200 bg-stone-950/90 backdrop-blur-md ${
+                  className={`pricing-card p-6 sm:p-7 rounded-2xl flex flex-col justify-between transition-all duration-200 bg-stone-950/95 text-left rtl:text-right ${
                     tier.highlighted
                       ? 'border-amber-400/90 ring-2 ring-amber-400/30 shadow-2xl relative'
                       : 'border-white/10 shadow-xl'
@@ -1802,8 +2092,8 @@ export default function PageShell({
                   borderColor={tier.highlighted ? 'rgba(251, 191, 36, 0.6)' : 'rgba(255, 255, 255, 0.15)'}
                 >
                   {tier.highlighted && (
-                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-0.5 rounded-full bg-[#b85438] text-white text-[10px] font-mono uppercase tracking-widest font-bold z-30 shadow-md">
-                      MOST POPULAR
+                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-0.5 rounded-full bg-[#b85438] text-white text-[10px] font-mono uppercase tracking-widest font-bold z-30 shadow-md whitespace-nowrap">
+                      {ui.pricing.popularBadge}
                     </div>
                   )}
 
@@ -1866,7 +2156,7 @@ export default function PageShell({
                 tag={content.credibility.tag}
                 primary={content.credibility.headlinePrimary}
                 accent={content.credibility.headlineAccent}
-                subline="Designed and architected directly on frontline commerce floors with zero synthetic filler."
+                subline={ui.credibility.subline}
                 align="left"
                 className="credibility-header mb-0"
                 maskedHorizon={true}
@@ -1874,7 +2164,7 @@ export default function PageShell({
                 ctaButton={{ text: content.tryStartButton, onClick: onOpenDemo }}
               />
 
-              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-stone-900/90 border border-stone-800 text-stone-400 font-mono text-xs">
+              <div className="credibility-badge inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-stone-900/90 border border-stone-800 text-stone-400 font-mono text-xs">
                 <span className="w-1.5 h-1.5 rounded-full bg-[#b85438]" />
                 <span>{content.credibility.locationBadge}</span>
               </div>
@@ -1882,15 +2172,15 @@ export default function PageShell({
 
             {/* Right Column: Founder Statement Card */}
             <div className="lg:col-span-7">
-              <div className="credibility-card p-8 sm:p-10 rounded-2xl bg-stone-950/90 backdrop-blur-md border border-stone-800 text-stone-200 text-left font-sans text-sm sm:text-base leading-relaxed shadow-2xl space-y-4">
+              <div className="credibility-card p-8 sm:p-10 rounded-2xl bg-stone-950/90 border border-stone-800 text-stone-200 text-left rtl:text-right font-sans text-sm sm:text-base leading-relaxed shadow-2xl space-y-4">
                 <p className="text-stone-200 font-normal">
-                  {content.credibility.leadSentence}
+                  <WordMaskText text={content.credibility.leadSentence} groupClassName="credibility-word" />
                 </p>
                 <p className="text-stone-300 font-normal">
-                  {content.credibility.researchSentence}
+                  <WordMaskText text={content.credibility.researchSentence} groupClassName="credibility-word" />
                 </p>
                 <p className="text-stone-100 font-medium pt-3 border-t border-stone-800/80">
-                  {content.credibility.conclusionSentence}
+                  <WordMaskText text={content.credibility.conclusionSentence} groupClassName="credibility-word" />
                 </p>
               </div>
             </div>
@@ -1925,7 +2215,7 @@ export default function PageShell({
         <div className="max-w-6xl mx-auto w-full">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
             {/* Left Column: Heading & Subline */}
-            <div className="lg:col-span-6 space-y-4 text-left">
+            <div className="lg:col-span-6 space-y-4 text-left rtl:text-right">
               <SectionHeader
                 icon={Calendar}
                 tag={content.finalCta.tag}
@@ -1941,32 +2231,28 @@ export default function PageShell({
             </div>
 
             {/* Right Column: Direct Booking & Fast Response Box */}
-            <div className="lg:col-span-6 p-6 sm:p-8 rounded-3xl bg-black/35 backdrop-blur-md border border-white/10 shadow-2xl space-y-4 text-stone-100">
-              <div className="flex items-center justify-between pb-3 border-b border-white/10 text-xs font-mono text-stone-300">
-                <span>CONCIERGE ONBOARDING</span>
+            <div className="final-cta-card lg:col-span-6 p-6 sm:p-8 rounded-3xl bg-black/45 border border-white/10 shadow-2xl space-y-4 text-stone-100 text-left rtl:text-right">
+              <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-white/10 text-xs font-mono text-stone-300">
+                <span>{ui.finalCta.onboardingLabel}</span>
                 <span className="text-emerald-300 font-semibold flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                  SLOTS AVAILABLE
+                  {ui.finalCta.slotsLabel}
                 </span>
               </div>
 
               <div className="space-y-2.5 text-xs font-sans text-stone-200">
-                <div className="flex items-center gap-2">
-                  <Check className="w-4 h-4 text-emerald-400 shrink-0" />
-                  <span>White-glove data migration from legacy spreadsheets or old POS systems</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Check className="w-4 h-4 text-emerald-400 shrink-0" />
-                  <span>On-site staff training and thermal printer configuration</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Check className="w-4 h-4 text-emerald-400 shrink-0" />
-                  <span>Dedicated direct WhatsApp channel with senior engineering team</span>
-                </div>
+                {ui.finalCta.checks.map((item, idx) => (
+                  <div key={idx} className="final-cta-check-item flex items-center gap-2">
+                    <Check className="w-4 h-4 text-emerald-400 shrink-0" />
+                    <span>
+                      <WordMaskText text={item} groupClassName="card-word" />
+                    </span>
+                  </div>
+                ))}
               </div>
 
               <div className="pt-3 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-3 text-[11px] font-mono text-stone-300">
-                <span>Response within 2 business hours</span>
+                <span>{ui.finalCta.responseTime}</span>
                 <button
                   type="button"
                   onClick={onOpenDemo}
@@ -1984,7 +2270,7 @@ export default function PageShell({
       {/* Standard: contact info, social links, legal, language toggle */}
       {/* ------------------------------------------------------------- */}
       <footer className="relative z-[110] border-t border-stone-800/80 py-16 px-6 sm:px-12 bg-stone-950 shadow-[0_-30px_70px_rgba(0,0,0,0.95)] text-xs font-mono text-stone-400">
-        <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-10 mb-12">
+        <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-10 mb-12 text-left rtl:text-right">
           {/* Brand Info */}
           <div className="space-y-3 md:col-span-2">
             <AtriumBrandLogo size={26} showText={true} />
@@ -1998,10 +2284,10 @@ export default function PageShell({
           <div>
             <div className="text-stone-200 font-semibold mb-3">{content.footer.contactHeading}</div>
             <div className="space-y-2 text-stone-400">
-              <div>Email: {content.footer.contactEmail}</div>
-              <div>Phone: {content.footer.phone}</div>
-              <div>Location: Algiers, Algeria</div>
-              <div>Response: Direct WhatsApp line</div>
+              <div>{ui.footer.emailLabel}: {content.footer.contactEmail}</div>
+              <div>{ui.footer.phoneLabel}: <span dir="ltr">{content.footer.phone}</span></div>
+              <div>{ui.footer.locationLabel}: {ui.footer.locationValue}</div>
+              <div>{ui.footer.responseLabel}: {ui.footer.responseValue}</div>
             </div>
           </div>
 
@@ -2042,12 +2328,12 @@ export default function PageShell({
 
         <div className="max-w-6xl mx-auto pt-8 border-t border-stone-900 flex flex-col sm:flex-row items-center justify-between text-[11px] text-stone-600 gap-4">
           <div>{content.footer.copyright}</div>
-          <div className="flex items-center gap-4">
-            <span>Built by From Scratch</span>
+          <div className="flex flex-wrap items-center justify-center gap-4">
+            <span>{ui.footer.badges[0]}</span>
             <span>•</span>
-            <span>Desktop &amp; Cloud Hybrid</span>
+            <span>{ui.footer.badges[1]}</span>
             <span>•</span>
-            <span>Offline-First Engine</span>
+            <span>{ui.footer.badges[2]}</span>
           </div>
         </div>
       </footer>
@@ -2058,4 +2344,6 @@ export default function PageShell({
       <ClosingWordmark lang={lang} />
     </div>
   );
-}
+});
+
+export default PageShell;

@@ -1,5 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { ChevronLeft, ChevronRight, Pause, Sparkles, CheckCircle2, ArrowRight, XCircle } from 'lucide-react';
+import { Language } from '../content/copy';
+import { UI_COPY } from '../content/uiCopy';
 import { SpotlightCard } from './SpotlightCard';
 
 interface ShiftPoint {
@@ -11,63 +13,48 @@ interface ShiftCardSwiperProps {
   points: ShiftPoint[];
   autoPlayInterval?: number;
   theme?: 'dark' | 'light' | 'terracotta';
+  lang?: Language;
 }
-
-// Concrete before vs. after architectural comparisons for the taller card format
-const SHIFT_COMPARISONS: Record<
-  number,
-  {
-    legacyChaos: string;
-    atriumClarity: string;
-    telemetryStat: { label: string; value: string };
-  }
-> = {
-  0: {
-    legacyChaos: 'Disjointed apps for register, bookings, and inventory that never sync.',
-    atriumClarity: 'One unified operational core where check-ins, bookings, and stock resolve instantly.',
-    telemetryStat: { label: 'Sync Latency', value: '< 20ms' },
-  },
-  1: {
-    legacyChaos: 'Blinded until end-of-day bank deposits or manual spreadsheet reconciliation.',
-    atriumClarity: 'Live consolidated net revenue, active floor headcount, and till totals on your phone.',
-    telemetryStat: { label: 'Real-Time Oversight', value: '100% Live' },
-  },
-  2: {
-    legacyChaos: 'Frontline registers lock up and customers wait during internet outages.',
-    atriumClarity: 'Embedded SQLite databases keep every till at full speed offline with zero interruption.',
-    telemetryStat: { label: 'Fiber Cut Tolerance', value: 'Unlimited' },
-  },
-  3: {
-    legacyChaos: 'Clunky POS interfaces that require days of employee training and cause register lines.',
-    atriumClarity: 'Clean, tactile workflows that staff master in under 15 minutes of onboarding.',
-    telemetryStat: { label: 'Staff Onboarding', value: '15 Mins' },
-  },
-};
 
 export function ShiftCardSwiper({
   points = [],
   autoPlayInterval = 4400,
   theme = 'light',
+  lang = 'en',
 }: ShiftCardSwiperProps) {
   const count = points.length;
   const [activeIndex, setActiveIndex] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
   const [isAutoPlayEnabled, setIsAutoPlayEnabled] = useState(true);
+  const [isInView, setIsInView] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   // Touch gesture state
   const touchStartXRef = useRef<number | null>(null);
   const touchDeltaXRef = useRef<number>(0);
 
-  // Auto-play timer
+  // Pause autoplay when off-screen
   useEffect(() => {
-    if (!isAutoPlayEnabled || isHovered || count <= 1) return;
+    const el = containerRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => setIsInView(entry.isIntersecting),
+      { rootMargin: '150px' }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  // Auto-play timer (active only while visible)
+  useEffect(() => {
+    if (!isInView || !isAutoPlayEnabled || isHovered || count <= 1) return;
 
     const timer = setInterval(() => {
       setActiveIndex((prev) => (prev + 1) % count);
     }, autoPlayInterval);
 
     return () => clearInterval(timer);
-  }, [isAutoPlayEnabled, isHovered, count, autoPlayInterval]);
+  }, [isInView, isAutoPlayEnabled, isHovered, count, autoPlayInterval]);
 
   const handleNext = useCallback(() => {
     setActiveIndex((prev) => (prev + 1) % count);
@@ -122,10 +109,13 @@ export function ShiftCardSwiper({
   }
 
   const currentPoint = points[activeIndex] || points[0];
-  const comparison = SHIFT_COMPARISONS[activeIndex] || SHIFT_COMPARISONS[0];
+  const ui = UI_COPY[lang].shift;
+  const proofUi = UI_COPY[lang].proofStrip;
+  const comparison = ui.comparisons[activeIndex] || ui.comparisons[0];
 
   return (
     <div
+      ref={containerRef}
       className="shift-card-showcase w-full max-w-xl mx-auto relative select-none"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
@@ -142,21 +132,21 @@ export function ShiftCardSwiper({
         <SpotlightCard
           spotlightColor={isLight ? 'rgba(184, 84, 56, 0.12)' : 'rgba(224, 107, 72, 0.22)'}
           borderColor={isLight ? 'rgba(184, 84, 56, 0.4)' : 'rgba(224, 107, 72, 0.5)'}
-          className={`group w-full h-full p-6 sm:p-8 rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.06)] flex flex-col justify-between transition-all duration-300 ${
+          className={`group w-full h-full p-6 sm:p-8 rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.06)] flex flex-col justify-between transition-all duration-300 text-left rtl:text-right ${
             isLight
               ? 'bg-white border border-stone-200 text-stone-900'
-              : 'bg-stone-950/95 backdrop-blur-md border border-stone-800 text-white'
+              : 'bg-stone-950/95 border border-stone-800 text-white'
           }`}
         >
           {/* Card Top Header */}
-          <div>
+          <div key={`shift-body-${activeIndex}`} className="animate-slide-in">
             <div className="flex items-center justify-between pb-4 mb-4 border-b border-stone-200/80 text-[11px] font-mono">
               <span className="text-[#b85438] font-bold tracking-wider flex items-center gap-1.5">
                 <Sparkles className="w-3.5 h-3.5 text-[#b85438]" />
-                <span>[ 0{activeIndex + 1} // ARCHITECTURAL ADVANTAGE ]</span>
+                <span>[ 0{activeIndex + 1} // {ui.badgeTag} ]</span>
               </span>
               <span className={`text-[10px] font-mono uppercase tracking-wider ${isLight ? 'text-stone-500' : 'text-stone-400'}`}>
-                SYSTEM EVOLUTION
+                {ui.evolutionLabel}
               </span>
             </div>
 
@@ -188,7 +178,7 @@ export function ShiftCardSwiper({
               >
                 <div className="text-[10px] font-mono text-stone-500 uppercase tracking-wider mb-1 font-bold flex items-center gap-1.5">
                   <XCircle className="w-3.5 h-3.5 text-rose-500" />
-                  <span>Legacy Disconnected Setup</span>
+                  <span>{ui.legacyLabel}</span>
                 </div>
                 <p className="text-xs leading-relaxed">
                   {comparison.legacyChaos}
@@ -205,7 +195,7 @@ export function ShiftCardSwiper({
               >
                 <div className="text-[10px] font-mono text-[#b85438] uppercase tracking-wider mb-1 font-bold flex items-center gap-1.5">
                   <CheckCircle2 className="w-3.5 h-3.5 text-[#b85438]" />
-                  <span>The Atrium Architecture</span>
+                  <span>{ui.atriumLabel}</span>
                 </div>
                 <p className="text-xs leading-relaxed font-medium">
                   {comparison.atriumClarity}
@@ -233,8 +223,8 @@ export function ShiftCardSwiper({
               </span>
             </div>
             <span className="text-[11px] flex items-center gap-1 text-[#b85438] font-semibold">
-              <span>Synchronized</span>
-              <ArrowRight className="w-3 h-3" />
+              <span>{ui.synchronizedLabel}</span>
+              <ArrowRight className="w-3 h-3 rtl:rotate-180" />
             </span>
           </div>
         </SpotlightCard>
@@ -256,7 +246,7 @@ export function ShiftCardSwiper({
                 : 'border-stone-800 bg-stone-950 hover:bg-stone-900 text-stone-300 hover:text-white'
             }`}
           >
-            <ChevronLeft className="w-4 h-4" />
+            <ChevronLeft className="w-4 h-4 rtl:rotate-180" />
           </button>
 
           {/* Segmented Progress Pills */}
@@ -298,7 +288,7 @@ export function ShiftCardSwiper({
                 : 'border-stone-800 bg-stone-950 hover:bg-stone-900 text-stone-300 hover:text-white'
             }`}
           >
-            <ChevronRight className="w-4 h-4" />
+            <ChevronRight className="w-4 h-4 rtl:rotate-180" />
           </button>
         </div>
 
@@ -323,12 +313,12 @@ export function ShiftCardSwiper({
             {isAutoPlayEnabled && !isHovered ? (
               <span className="flex items-center gap-1 text-[10px] text-emerald-600 font-mono">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                <span>AUTO</span>
+                <span>{proofUi.autoLabel}</span>
               </span>
             ) : (
               <span className="flex items-center gap-1 text-[10px] text-stone-400 font-mono">
                 <Pause className="w-2.5 h-2.5" />
-                <span>PAUSED</span>
+                <span>{proofUi.pausedLabel}</span>
               </span>
             )}
           </button>

@@ -55,8 +55,7 @@ export const RobotHead = forwardRef<RobotHeadHandle, RobotHeadProps>(function Ro
   const rightEyeRef = useRef<THREE.Mesh>(null);
   const leftPupilRef = useRef<THREE.Mesh>(null);
   const rightPupilRef = useRef<THREE.Mesh>(null);
-  const leftEyeLightRef = useRef<THREE.PointLight>(null);
-  const rightEyeLightRef = useRef<THREE.PointLight>(null);
+  const eyeLightRef = useRef<THREE.PointLight>(null);
 
   // Organic randomized eye blink timing state (zero allocations in animation loop)
   const blinkRef = useRef({
@@ -193,9 +192,10 @@ export const RobotHead = forwardRef<RobotHeadHandle, RobotHeadProps>(function Ro
   const earHeight = 0.045 * scale;
   const earX = headW * 0.5 + 0.015 * scale;
 
-  // Frame animation loop with zero Vector3 allocations
-  useFrame((state) => {
+  // Frame animation loop with zero Vector3 allocations and frame-rate-independent damping
+  useFrame((state, delta) => {
     if (!groupRef.current) return;
+    const dt = Math.min(delta, 0.05);
     const now = performance.now() * 0.001;
 
     // 1. Organic, persistent breathing float & subtle sway
@@ -250,9 +250,9 @@ export const RobotHead = forwardRef<RobotHeadHandle, RobotHeadProps>(function Ro
       const baseTargetPitch = rotation[0] + baseCounterPitch + baseIdlePitch;
       const baseTargetRoll = rotation[2] + baseCounterRoll + baseIdleRoll;
 
-      baseGroupRef.current.rotation.y = THREE.MathUtils.lerp(baseGroupRef.current.rotation.y, baseTargetYaw, 0.045);
-      baseGroupRef.current.rotation.x = THREE.MathUtils.lerp(baseGroupRef.current.rotation.x, baseTargetPitch, 0.045);
-      baseGroupRef.current.rotation.z = THREE.MathUtils.lerp(baseGroupRef.current.rotation.z, baseTargetRoll, 0.045);
+      baseGroupRef.current.rotation.y = THREE.MathUtils.damp(baseGroupRef.current.rotation.y, baseTargetYaw, 2.8, dt);
+      baseGroupRef.current.rotation.x = THREE.MathUtils.damp(baseGroupRef.current.rotation.x, baseTargetPitch, 2.8, dt);
+      baseGroupRef.current.rotation.z = THREE.MathUtils.damp(baseGroupRef.current.rotation.z, baseTargetRoll, 2.8, dt);
     }
 
     // Fluent Head Rotation (Agile, full responsive swivel & pitch)
@@ -265,9 +265,9 @@ export const RobotHead = forwardRef<RobotHeadHandle, RobotHeadProps>(function Ro
       const headTargetPitch = rotation[0] * 0.5 + headAimPitch + headIdlePitch;
       const headTargetRoll = rotation[2] * 0.5 + headAimRoll + headIdleRoll;
 
-      headGroupRef.current.rotation.y = THREE.MathUtils.lerp(headGroupRef.current.rotation.y, headTargetYaw, 0.09);
-      headGroupRef.current.rotation.x = THREE.MathUtils.lerp(headGroupRef.current.rotation.x, headTargetPitch, 0.09);
-      headGroupRef.current.rotation.z = THREE.MathUtils.lerp(headGroupRef.current.rotation.z, headTargetRoll, 0.09);
+      headGroupRef.current.rotation.y = THREE.MathUtils.damp(headGroupRef.current.rotation.y, headTargetYaw, 5.7, dt);
+      headGroupRef.current.rotation.x = THREE.MathUtils.damp(headGroupRef.current.rotation.x, headTargetPitch, 5.7, dt);
+      headGroupRef.current.rotation.z = THREE.MathUtils.damp(headGroupRef.current.rotation.z, headTargetRoll, 5.7, dt);
     }
 
     // 4. Dynamic eye emissive pulsing (breathing idle glow)
@@ -291,10 +291,10 @@ export const RobotHead = forwardRef<RobotHeadHandle, RobotHeadProps>(function Ro
       : idleGazeY;
 
     if (leftPupilRef.current && rightPupilRef.current) {
-      leftPupilRef.current.position.x = THREE.MathUtils.lerp(leftPupilRef.current.position.x, -eyeX + targetPupilX, 0.12);
-      leftPupilRef.current.position.y = THREE.MathUtils.lerp(leftPupilRef.current.position.y, eyeY + targetPupilY, 0.12);
-      rightPupilRef.current.position.x = THREE.MathUtils.lerp(rightPupilRef.current.position.x, eyeX + targetPupilX, 0.12);
-      rightPupilRef.current.position.y = THREE.MathUtils.lerp(rightPupilRef.current.position.y, eyeY + targetPupilY, 0.12);
+      leftPupilRef.current.position.x = THREE.MathUtils.damp(leftPupilRef.current.position.x, -eyeX + targetPupilX, 7.7, dt);
+      leftPupilRef.current.position.y = THREE.MathUtils.damp(leftPupilRef.current.position.y, eyeY + targetPupilY, 7.7, dt);
+      rightPupilRef.current.position.x = THREE.MathUtils.damp(rightPupilRef.current.position.x, eyeX + targetPupilX, 7.7, dt);
+      rightPupilRef.current.position.y = THREE.MathUtils.damp(rightPupilRef.current.position.y, eyeY + targetPupilY, 7.7, dt);
     }
 
     // 6. ORGANIC RANDOMIZED EYE BLINK ANIMATION
@@ -347,13 +347,10 @@ export const RobotHead = forwardRef<RobotHeadHandle, RobotHeadProps>(function Ro
     if (leftPupilRef.current) leftPupilRef.current.scale.y = currentEyeScaleY;
     if (rightPupilRef.current) rightPupilRef.current.scale.y = currentEyeScaleY;
 
-    // Animate dual eye point lights proportionally, dimming during blink
-    const lightIntensity = (0.35 + (pulse - 1.7) * 0.22) * (0.15 + 0.85 * currentEyeScaleY);
-    if (leftEyeLightRef.current) {
-      leftEyeLightRef.current.intensity = lightIntensity;
-    }
-    if (rightEyeLightRef.current) {
-      rightEyeLightRef.current.intensity = lightIntensity;
+    // Animate centered eye point light proportionally, dimming during blink
+    const lightIntensity = (0.48 + (pulse - 1.7) * 0.28) * (0.15 + 0.85 * currentEyeScaleY);
+    if (eyeLightRef.current) {
+      eyeLightRef.current.intensity = lightIntensity;
     }
   });
 
@@ -507,22 +504,13 @@ export const RobotHead = forwardRef<RobotHeadHandle, RobotHeadProps>(function Ro
           receiveShadow={false}
         />
 
-        {/* DUAL EYE POINT LIGHTS (Strictly parented inside headGroupRef) */}
+        {/* CENTERED EYE GLOW POINT LIGHT (Strictly parented inside headGroupRef) */}
         <pointLight
-          ref={leftEyeLightRef}
-          position={[-eyeX, eyeY, eyeZ + 0.016 * scale]}
+          ref={eyeLightRef}
+          position={[0, eyeY, eyeZ + 0.024 * scale]}
           color="#ff6a38"
-          intensity={0.35}
-          distance={0.45 * scale}
-          decay={2}
-          castShadow={false}
-        />
-        <pointLight
-          ref={rightEyeLightRef}
-          position={[eyeX, eyeY, eyeZ + 0.016 * scale]}
-          color="#ff6a38"
-          intensity={0.35}
-          distance={0.45 * scale}
+          intensity={0.48}
+          distance={0.55 * scale}
           decay={2}
           castShadow={false}
         />

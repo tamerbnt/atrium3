@@ -1,12 +1,12 @@
 import React, { useEffect, useRef, useState, useMemo, Suspense } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { PerspectiveCamera } from '@react-three/drei';
 import { EffectComposer, Bloom } from '@react-three/postprocessing';
 import * as THREE from 'three';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { RobotHead, RobotHeadHandle } from './RobotHead';
 import { CAMERA_WAYPOINTS } from '../types/cameraWaypoints';
+import { probeWebGLCapabilities } from '../utils/deviceDetection';
 import {
   createBakedEnvironmentTexture,
   createBrushedMetalTexture,
@@ -24,6 +24,7 @@ gsap.registerPlugin(ScrollTrigger);
 
 interface Scene3DProps {
   isMobile: boolean;
+  isSoftwareGl?: boolean;
   isInView: boolean;
   scrollProgress?: number;
   activeWaypointIndex?: number;
@@ -90,15 +91,71 @@ export const MOBILE_ROBOT_CONFIGS = [
 
 export const ROBOT_CONFIGS = DESKTOP_ROBOT_CONFIGS;
 
+function SoftwareGlPacer({ active }: { active: boolean }) {
+  const { gl, invalidate } = useThree();
+
+  useEffect(() => {
+    if (!active) return;
+
+    let cancelled = false;
+    let timerId = 0;
+
+    const afterDraw = (cb: () => void) => {
+      const rawGl = gl.getContext() as WebGL2RenderingContext;
+      if (typeof rawGl?.fenceSync !== 'function') {
+        timerId = window.setTimeout(cb, 80);
+        return;
+      }
+      const sync = rawGl.fenceSync(rawGl.SYNC_GPU_COMMANDS_COMPLETE, 0);
+      rawGl.flush();
+      const poll = () => {
+        if (cancelled) {
+          if (sync) rawGl.deleteSync(sync);
+          return;
+        }
+        const state = sync ? rawGl.getSyncParameter(sync, rawGl.SYNC_STATUS) : rawGl.SIGNALED;
+        if (state === rawGl.UNSIGNALED) {
+          timerId = window.setTimeout(poll, 5);
+        } else {
+          if (sync) rawGl.deleteSync(sync);
+          timerId = window.setTimeout(cb, 80);
+        }
+      };
+      timerId = window.setTimeout(poll, 5);
+    };
+
+    const tick = () => {
+      if (cancelled) return;
+      invalidate();
+      requestAnimationFrame(() => {
+        if (!cancelled) afterDraw(tick);
+      });
+    };
+
+    tick();
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timerId);
+    };
+  }, [active, gl, invalidate]);
+
+  return null;
+}
+
 /**
  * Inner 3D scene content with Three.js objects
  */
 function SceneContent({
   isMobile,
+  isSoftwareGl,
+  isInView,
   activeWaypointIndex = 0,
   onStatsUpdate,
 }: {
   isMobile: boolean;
+  isSoftwareGl: boolean;
+  isInView: boolean;
   activeWaypointIndex?: number;
   scrollProgress?: number;
   onStatsUpdate?: (stats: { fps: number; drawCalls: number; triangles: number }) => void;
@@ -382,13 +439,44 @@ function SceneContent({
     });
   }, [logoTex]);
 
-  // Cleanup textures and materials on unmount
+  // Cleanup all GPU textures and materials on unmount
   useEffect(() => {
     return () => {
+      envTexture.dispose();
+      brushedTex.dispose();
+      terracottaDiscTex.dispose();
+      eyeGlowTex.dispose();
       logoTex.dispose();
+      heroBodyMaterial.dispose();
+      backgroundBodyMaterial.dispose();
+      heroJawMaterial.dispose();
+      backgroundJawMaterial.dispose();
+      distantBodyMaterial.dispose();
+      distantJawMaterial.dispose();
+      eyeMaterial.dispose();
+      distantEyeMaterial.dispose();
+      rivetMaterial.dispose();
+      terracottaFlatSpaceMaterial.dispose();
       logoMaterial.dispose();
     };
-  }, [logoTex, logoMaterial]);
+  }, [
+    envTexture,
+    brushedTex,
+    terracottaDiscTex,
+    eyeGlowTex,
+    logoTex,
+    heroBodyMaterial,
+    backgroundBodyMaterial,
+    heroJawMaterial,
+    backgroundJawMaterial,
+    distantBodyMaterial,
+    distantJawMaterial,
+    eyeMaterial,
+    distantEyeMaterial,
+    rivetMaterial,
+    terracottaFlatSpaceMaterial,
+    logoMaterial,
+  ]);
 
   // Compute responsive layout offsets using viewport in world units
   // Framed generously on the right side of the hero section on desktop
@@ -399,27 +487,17 @@ function SceneContent({
 
   const activeRobotConfigs = DESKTOP_ROBOT_CONFIGS;
 
-  // Frame animation loop with zero heap allocation
-  useFrame((state) => {
+  // Frame animation loop with zero heap allocation and frame-rate-independent damping
+  useFrame((state, delta) => {
+    const dt = Math.min(delta, 0.05);
     const now = performance.now();
     const t = now * 0.001;
 
-    // 0. Continuous perspectiveCamera aspect ratio and projection matrix synchronization
+    // 0. Sync projection matrix when waypoint FOV transitions
     const cam = state.camera as THREE.PerspectiveCamera;
-    if (cam && cam.isPerspectiveCamera) {
-      const currentAspect = state.size.width / state.size.height;
-      let needsUpdate = false;
-      if (Math.abs(cam.aspect - currentAspect) > 0.0001) {
-        cam.aspect = currentAspect;
-        needsUpdate = true;
-      }
-      if (Math.abs(cam.fov - cameraTargetRef.current.fov) > 0.01) {
-        cam.fov = cameraTargetRef.current.fov;
-        needsUpdate = true;
-      }
-      if (needsUpdate) {
-        cam.updateProjectionMatrix();
-      }
+    if (cam && cam.isPerspectiveCamera && Math.abs(cam.fov - cameraTargetRef.current.fov) > 0.01) {
+      cam.fov = cameraTargetRef.current.fov;
+      cam.updateProjectionMatrix();
     }
 
     // 1. Mouse pointer parallax + Discrete Triggered Waypoint Camera
@@ -430,9 +508,9 @@ function SceneContent({
     const targetCamY = cameraTargetRef.current.posY + pY * (isMobile ? 0.02 : 0.05);
     const targetCamZ = cameraTargetRef.current.posZ;
 
-    state.camera.position.x = THREE.MathUtils.lerp(state.camera.position.x, targetCamX, 0.08);
-    state.camera.position.y = THREE.MathUtils.lerp(state.camera.position.y, targetCamY, 0.08);
-    state.camera.position.z = THREE.MathUtils.lerp(state.camera.position.z, targetCamZ, 0.08);
+    state.camera.position.x = THREE.MathUtils.damp(state.camera.position.x, targetCamX, 5.0, dt);
+    state.camera.position.y = THREE.MathUtils.damp(state.camera.position.y, targetCamY, 5.0, dt);
+    state.camera.position.z = THREE.MathUtils.damp(state.camera.position.z, targetCamZ, 5.0, dt);
 
     lookAtTarget.set(
       cameraTargetRef.current.lookX,
@@ -445,15 +523,17 @@ function SceneContent({
     if (clusterGroupRef.current) {
       clusterGroupRef.current.position.x = clusterShiftX + Math.sin(t * 0.4) * 0.015;
       clusterGroupRef.current.position.y = Math.cos(t * 0.3) * 0.012;
-      clusterGroupRef.current.rotation.x = THREE.MathUtils.lerp(
+      clusterGroupRef.current.rotation.x = THREE.MathUtils.damp(
         clusterGroupRef.current.rotation.x,
         cameraTargetRef.current.clusterRotX,
-        0.08
+        5.0,
+        dt
       );
-      clusterGroupRef.current.rotation.y = THREE.MathUtils.lerp(
+      clusterGroupRef.current.rotation.y = THREE.MathUtils.damp(
         clusterGroupRef.current.rotation.y,
         cameraTargetRef.current.clusterRotY,
-        0.08
+        5.0,
+        dt
       );
       clusterGroupRef.current.rotation.z = Math.sin(t * 0.25) * 0.008;
     }
@@ -461,25 +541,27 @@ function SceneContent({
     // 3. Terracotta stage disc discrete waypoint state (fully visible tilted stage beneath robots)
     if (discMeshRef.current) {
       const baseDiscY = isMobile ? -0.70 : -0.96;
-      discMeshRef.current.position.y = THREE.MathUtils.lerp(
+      discMeshRef.current.position.y = THREE.MathUtils.damp(
         discMeshRef.current.position.y,
         baseDiscY + cameraTargetRef.current.discY,
-        0.08
+        5.0,
+        dt
       );
-      discMeshRef.current.rotation.x = THREE.MathUtils.lerp(
+      discMeshRef.current.rotation.x = THREE.MathUtils.damp(
         discMeshRef.current.rotation.x,
         -Math.PI * 0.38 + cameraTargetRef.current.discTiltX,
-        0.08
+        5.0,
+        dt
       );
     }
 
-    // 4. Performance FPS counter calculation
-    frameCountRef.current += 1;
-    if (now - lastTimeRef.current >= 500) {
-      const currentFps = Math.round((frameCountRef.current * 1000) / (now - lastTimeRef.current));
-      frameCountRef.current = 0;
-      lastTimeRef.current = now;
-      if (onStatsUpdate) {
+    // 4. Performance FPS counter calculation (only when telemetry HUD callback is active)
+    if (onStatsUpdate) {
+      frameCountRef.current += 1;
+      if (now - lastTimeRef.current >= 500) {
+        const currentFps = Math.round((frameCountRef.current * 1000) / (now - lastTimeRef.current));
+        frameCountRef.current = 0;
+        lastTimeRef.current = now;
         onStatsUpdate({
           fps: currentFps,
           drawCalls: gl.info.render.calls,
@@ -577,8 +659,8 @@ function SceneContent({
         </group>
       </group>
 
-      {/* Selective Bloom Post-Processing Pass (desktop only; mobile relies on emissive + point light for 60fps) */}
-      {!isMobile && (
+      {/* Selective Bloom Post-Processing Pass (hardware GPU desktop only) */}
+      {!isMobile && !isSoftwareGl && (
         <EffectComposer multisampling={0}>
           <Bloom
             luminanceThreshold={1.2}
@@ -589,6 +671,8 @@ function SceneContent({
           />
         </EffectComposer>
       )}
+
+      {isSoftwareGl && <SoftwareGlPacer active={isInView} />}
     </>
   );
 }
@@ -598,6 +682,7 @@ function SceneContent({
  */
 export default function Scene3D({
   isMobile,
+  isSoftwareGl: isSoftwareGlProp,
   isInView,
   scrollProgress,
   activeWaypointIndex = 0,
@@ -608,11 +693,17 @@ export default function Scene3D({
     return null;
   }
 
+  const isSoftwareGl = useMemo(
+    () => isSoftwareGlProp ?? probeWebGLCapabilities().isSoftwareGl,
+    [isSoftwareGlProp]
+  );
+
   const dpr = useMemo(() => {
     if (typeof window === 'undefined') return 1;
-    // Cap mobile to 1.5x DPR to avoid fillrate throttling on dense 3x retina displays
+    if (isSoftwareGl) return 1;
+    // Cap desktop DPR to 2x and mobile to 1.5x
     return Math.min(window.devicePixelRatio || 1, isMobile ? 1.5 : 2);
-  }, [isMobile]);
+  }, [isMobile, isSoftwareGl]);
 
   // Check if developer requested r3f-perf overlay via URL param '?perf=true' or hash '#perf'
   const [showDevPerf, setShowDevPerf] = useState(false);
@@ -636,9 +727,9 @@ export default function Scene3D({
         }}
         dpr={dpr}
         shadows={false} // Performance: Zero dynamic shadow maps
-        frameloop={isInView ? 'always' : 'demand'} // Cap render loop: pause continuous RAF when not in view, render on demand
+        frameloop={isInView && !isSoftwareGl ? 'always' : 'demand'}
         gl={{
-          antialias: !isMobile,
+          antialias: !isMobile && !isSoftwareGl,
           powerPreference: 'high-performance',
           alpha: true,
           stencil: false,
@@ -646,15 +737,6 @@ export default function Scene3D({
         }}
         className="w-full h-full"
       >
-        {/* Explicit PerspectiveCamera ensuring pristine aspect ratio and correct hero framing */}
-        <PerspectiveCamera
-          makeDefault
-          position={[0.0, isMobile ? 0.12 : 0.25, isMobile ? 4.95 : 4.75]}
-          fov={isMobile ? 50 : 44}
-          near={0.1}
-          far={100}
-        />
-
         {/* Dev-only r3f-perf instrument overlay: tree-shaken from production build */}
         {DevPerf && showDevPerf && (
           <Suspense fallback={null}>
@@ -664,6 +746,8 @@ export default function Scene3D({
 
         <SceneContent
           isMobile={isMobile}
+          isSoftwareGl={isSoftwareGl}
+          isInView={isInView}
           activeWaypointIndex={activeWaypointIndex}
           scrollProgress={scrollProgress}
           onStatsUpdate={onStatsUpdate}

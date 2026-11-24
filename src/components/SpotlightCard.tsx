@@ -1,4 +1,4 @@
-import React, { useRef, useState, MouseEvent } from 'react';
+import React, { useRef, MouseEvent } from 'react';
 
 interface SpotlightCardProps {
   children: React.ReactNode;
@@ -12,6 +12,7 @@ interface SpotlightCardProps {
  * SpotlightCard
  * Tactile cursor-following illumination glow (Linear / Stripe style)
  * Highlights borders and backdrop with a subtle radial terracotta gradient.
+ * Uses direct DOM ref updates to maintain 60fps with zero React re-renders.
  */
 export function SpotlightCard({
   children,
@@ -21,20 +22,41 @@ export function SpotlightCard({
   onClick,
 }: SpotlightCardProps) {
   const cardRef = useRef<HTMLDivElement>(null);
-  const [position, setPosition] = useState({ x: 0, y: 0 });
-  const [opacity, setOpacity] = useState(0);
+  const glowRef = useRef<HTMLDivElement>(null);
+  const borderRef = useRef<HTMLDivElement>(null);
+  const rafRef = useRef<number | null>(null);
+  const coordsRef = useRef({ x: 0, y: 0 });
 
   const handleMouseMove = (e: MouseEvent<HTMLDivElement>) => {
-    if (!cardRef.current) return;
-    const rect = cardRef.current.getBoundingClientRect();
-    setPosition({
-      x: e.clientX - rect.left,
-      y: e.clientY - rect.top,
-    });
+    const card = cardRef.current;
+    if (!card) return;
+    const rect = card.getBoundingClientRect();
+    coordsRef.current.x = e.clientX - rect.left;
+    coordsRef.current.y = e.clientY - rect.top;
+
+    if (rafRef.current === null) {
+      rafRef.current = requestAnimationFrame(() => {
+        rafRef.current = null;
+        if (glowRef.current) {
+          glowRef.current.style.background = `radial-gradient(400px circle at ${coordsRef.current.x}px ${coordsRef.current.y}px, ${spotlightColor}, transparent 70%)`;
+        }
+      });
+    }
   };
 
-  const handleMouseEnter = () => setOpacity(1);
-  const handleMouseLeave = () => setOpacity(0);
+  const handleMouseEnter = () => {
+    if (glowRef.current) glowRef.current.style.opacity = '1';
+    if (borderRef.current) borderRef.current.style.opacity = '1';
+  };
+
+  const handleMouseLeave = () => {
+    if (rafRef.current !== null) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    }
+    if (glowRef.current) glowRef.current.style.opacity = '0';
+    if (borderRef.current) borderRef.current.style.opacity = '0';
+  };
 
   return (
     <div
@@ -47,18 +69,20 @@ export function SpotlightCard({
     >
       {/* Dynamic Cursor Spotlight Layer */}
       <div
+        ref={glowRef}
         className="pointer-events-none absolute -inset-px transition-opacity duration-300 z-10"
         style={{
-          opacity,
-          background: `radial-gradient(400px circle at ${position.x}px ${position.y}px, ${spotlightColor}, transparent 70%)`,
+          opacity: 0,
+          background: `radial-gradient(400px circle at 0px 0px, ${spotlightColor}, transparent 70%)`,
         }}
       />
 
       {/* Illuminating Border Highlight Overlay */}
       <div
+        ref={borderRef}
         className="pointer-events-none absolute -inset-px rounded-xl transition-opacity duration-300 z-10"
         style={{
-          opacity,
+          opacity: 0,
           boxShadow: `inset 0 0 0 1px ${borderColor}`,
         }}
       />
