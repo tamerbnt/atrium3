@@ -177,3 +177,32 @@ export function buildDemoWhatsAppUrl(
   return `https://wa.me/${cleanDigits}?text=${encodeURIComponent(lines.join('\n'))}`;
 }
 
+/**
+ * Caps WebGL pixel ratio to avoid redundant fragment shader cost on high-DPI panels
+ * while locking software WebGL renderers to 1x.
+ */
+export function capDevicePixelRatio(devicePixelRatio: number, isSoftwareGl: boolean): number {
+  if (isSoftwareGl) return 1;
+  const safeDpr = Number.isFinite(devicePixelRatio) && devicePixelRatio > 0 ? devicePixelRatio : 1;
+  return Math.min(Math.max(1, safeDpr), 1.5);
+}
+
+/**
+ * Pauses the 3D Hero render loop once the Section 1.5 curtain has covered >92% of the viewport.
+ */
+export function shouldRenderHeroScene(scrollY: number, windowH: number): boolean {
+  if (windowH <= 0) return true;
+  return scrollY < windowH * 0.92;
+}
+
+/**
+ * Formats numeric counter values with fixed decimals and thousands separator.
+ */
+export function formatCounterValue(
+  value: number,
+  decimals = 0,
+  separator = ','
+): string {
+  return value.toFixed(decimals).replace(/\B(?=(\d{3})+(?!\d))/g, separator);
+}
+

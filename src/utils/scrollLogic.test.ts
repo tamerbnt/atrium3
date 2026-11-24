@@ -8,6 +8,9 @@ import {
   stepSliderPercent,
   isDashboardMetricVisible,
   buildDemoWhatsAppUrl,
+  capDevicePixelRatio,
+  shouldRenderHeroScene,
+  formatCounterValue,
 } from './scrollLogic';
 
 test('evaluateHeroCurtainSnap triggers downward glide from Hero on user scroll down', () => {
@@ -123,4 +126,22 @@ test('buildDemoWhatsAppUrl encodes localized walkthrough summary cleanly', () =>
   assert.ok(url.startsWith('https://wa.me/2130550921408?text='));
   assert.ok(decodeURIComponent(url).includes('Atlas Gym'));
   assert.ok(decodeURIComponent(url).includes('Memberships & Passes'));
+});
+
+test('capDevicePixelRatio locks software WebGL to 1 and caps hardware DPR at 1.5', () => {
+  assert.equal(capDevicePixelRatio(2, true), 1);
+  assert.equal(capDevicePixelRatio(3, false), 1.5);
+  assert.equal(capDevicePixelRatio(1.25, false), 1.25);
+  assert.equal(capDevicePixelRatio(0.5, false), 1);
+});
+
+test('shouldRenderHeroScene pauses 3D loop once Proof Strip covers 92% of viewport', () => {
+  assert.equal(shouldRenderHeroScene(0, 900), true);
+  assert.equal(shouldRenderHeroScene(700, 900), true);
+  assert.equal(shouldRenderHeroScene(840, 900), false);
+});
+
+test('formatCounterValue formats numbers cleanly with decimals and separators', () => {
+  assert.equal(formatCounterValue(240700, 0, ','), '240,700');
+  assert.equal(formatCounterValue(98.45, 1, ','), '98.5');
 });

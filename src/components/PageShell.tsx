@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import {
@@ -17,13 +17,12 @@ import {
   Compass,
   Activity,
   CreditCard,
-  Menu,
-  X,
 } from 'lucide-react';
 import { CONTENT, Language } from '../content/copy';
 import { UI_COPY } from '../content/uiCopy';
 import { useLenis } from './SmoothScroll';
 import { AtriumBrandLogo } from './AtriumBrandLogo';
+import { FloatingNav } from './FloatingNav';
 import { SpotlightCard } from './SpotlightCard';
 import { AnimatedCounter } from './AnimatedCounter';
 import { BeforeAfterSlider } from './BeforeAfterSlider';
@@ -36,30 +35,11 @@ import { ShiftCardSwiper } from './ShiftCardSwiper';
 import FaqSection from './FaqSection';
 import { WordMaskText } from './WordMaskText';
 import {
-  evaluateHeroCurtainSnap,
-  findActiveSectionId,
   isDashboardMetricVisible,
   KpiFilterMode,
-  SectionOffset,
 } from '../utils/scrollLogic';
 
 gsap.registerPlugin(ScrollTrigger);
-
-const SECTION_IDS = [
-  'section-hero',
-  'section-proof-strip',
-  'section-problem',
-  'section-shift',
-  'section-how-it-works',
-  'section-verticals',
-  'section-differentiation',
-  'section-dashboard',
-  'section-slider',
-  'section-pricing',
-  'section-proof',
-  'section-faq',
-  'section-final-cta',
-];
 
 interface PageShellProps {
   lang: Language;
@@ -88,16 +68,6 @@ const PageShell = React.memo(function PageShell({
 
   const [activeVertical, setActiveVertical] = useState('memberships');
   const [activeKpiFilter, setActiveKpiFilter] = useState<KpiFilterMode>('all');
-  const [isScrolled, setIsScrolled] = useState(false);
-  const [isNavVisible, setIsNavVisible] = useState(true);
-  const [activeSectionId, setActiveSectionId] = useState<string>('section-hero');
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-
-  const lastScrollYRef = useRef(0);
-  const isScrolledRef = useRef(false);
-  const isNavVisibleRef = useRef(true);
-  const activeSectionIdRef = useRef('section-hero');
-  const sectionOffsetsRef = useRef<SectionOffset[]>([]);
 
   const isTransitioningRef = useRef(false);
   const transitionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -139,135 +109,14 @@ const PageShell = React.memo(function PageShell({
     };
   }, []);
 
-  // Cache section offsets so scroll listener never queries DOM or forces layout per frame
-  const refreshSectionOffsets = useCallback(() => {
-    const next: SectionOffset[] = [];
-    for (let i = 0; i < SECTION_IDS.length; i++) {
-      const id = SECTION_IDS[i];
-      const el = document.getElementById(id);
-      if (el) {
-        next.push({ id, top: el.offsetTop });
-      }
-    }
-    sectionOffsetsRef.current = next;
-  }, []);
-
   useEffect(() => {
-    refreshSectionOffsets();
-    const onResize = () => refreshSectionOffsets();
-    window.addEventListener('resize', onResize, { passive: true });
-    ScrollTrigger.addEventListener('refresh', refreshSectionOffsets);
-    const resizeObserver =
-      typeof ResizeObserver !== 'undefined'
-        ? new ResizeObserver(() => refreshSectionOffsets())
-        : null;
-    if (resizeObserver && document.body) {
-      resizeObserver.observe(document.body);
-    }
     return () => {
-      window.removeEventListener('resize', onResize);
-      ScrollTrigger.removeEventListener('refresh', refreshSectionOffsets);
-      resizeObserver?.disconnect();
       if (transitionTimerRef.current) clearTimeout(transitionTimerRef.current);
       unlockSnap();
     };
-  }, [lang, refreshSectionOffsets, unlockSnap]);
+  }, [unlockSnap]);
 
-  const { scrollTo: lenisScrollTo } = useLenis(
-    useCallback(
-      (lenisInstance: any) => {
-        const scrollY =
-          lenisInstance?.scroll ?? (window.scrollY || document.documentElement.scrollTop);
-
-        const nextScrolled = scrollY > 60;
-        if (nextScrolled !== isScrolledRef.current) {
-          isScrolledRef.current = nextScrolled;
-          setIsScrolled(nextScrolled);
-        }
-
-        const prevScrollY = lastScrollYRef.current;
-        const delta = scrollY - prevScrollY;
-
-        let nextNavVisible = isNavVisibleRef.current;
-        if (scrollY <= 20) {
-          nextNavVisible = true;
-        } else if (delta > 6 && scrollY > 60) {
-          nextNavVisible = false;
-        } else if (delta < -6) {
-          nextNavVisible = true;
-        }
-        if (nextNavVisible !== isNavVisibleRef.current) {
-          isNavVisibleRef.current = nextNavVisible;
-          setIsNavVisible(nextNavVisible);
-        }
-        lastScrollYRef.current = scrollY;
-
-        // Active section spy using pre-cached offsets (zero layout thrash)
-        if (sectionOffsetsRef.current.length > 0) {
-          const nextActiveId = findActiveSectionId(
-            scrollY + 160,
-            sectionOffsetsRef.current,
-            'section-hero'
-          );
-          if (nextActiveId !== activeSectionIdRef.current) {
-            activeSectionIdRef.current = nextActiveId;
-            setActiveSectionId(nextActiveId);
-          }
-        }
-
-        // Smooth trigger glide strictly between Hero and Section 1.5
-        if (lenisInstance) {
-          const windowH = window.innerHeight;
-          const snapAction = evaluateHeroCurtainSnap({
-            scrollY,
-            prevScrollY,
-            delta,
-            direction: lenisInstance.direction ?? 0,
-            windowH,
-            isSnapping: isSnappingRef.current,
-            isTransitioning: isTransitioningRef.current,
-          });
-
-          if (snapAction === 'to-proof-strip') {
-            isSnappingRef.current = true;
-            engageMomentumGuard();
-            lenisInstance.velocity = 0;
-            if (snapTimerRef.current) clearTimeout(snapTimerRef.current);
-            lenisInstance.scrollTo('#section-proof-strip', {
-              duration: 0.85,
-              offset: 0,
-              force: true,
-              easing: (t: number) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
-              onComplete: () => {
-                unlockSnap(lenisInstance);
-              },
-            });
-            snapTimerRef.current = setTimeout(() => {
-              unlockSnap(lenisInstance);
-            }, 920);
-          } else if (snapAction === 'to-hero') {
-            isSnappingRef.current = true;
-            engageMomentumGuard();
-            lenisInstance.velocity = 0;
-            if (snapTimerRef.current) clearTimeout(snapTimerRef.current);
-            lenisInstance.scrollTo(0, {
-              duration: 0.85,
-              offset: 0,
-              force: true,
-              easing: (t: number) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
-              onComplete: () => {
-                unlockSnap(lenisInstance);
-              },
-            });
-            snapTimerRef.current = setTimeout(() => {
-              unlockSnap(lenisInstance);
-            }, 920);
-          }
-        }
-      },
-      [engageMomentumGuard, unlockSnap]
-    )
-  );
+  const { scrollTo: lenisScrollTo } = useLenis();
 
   const scrollTo = useCallback(
     (id: string) => {
@@ -293,6 +142,32 @@ const PageShell = React.memo(function PageShell({
   const currentVertical =
     content.verticals.items.find((v) => v.id === activeVertical) || content.verticals.items[0];
 
+  const tryStartCta = useMemo(
+    () => ({ text: content.tryStartButton, onClick: onOpenDemo }),
+    [content.tryStartButton, onOpenDemo]
+  );
+
+  const finalCtaConfig = useMemo(
+    () => ({ text: content.finalCta.ctaButton, onClick: onOpenDemo }),
+    [content.finalCta.ctaButton, onOpenDemo]
+  );
+
+  const handleSelectCategory = useCallback(
+    (catId: string) => {
+      setActiveVertical(catId);
+      scrollTo('section-verticals');
+    },
+    [scrollTo]
+  );
+
+  const handleHeroScrollClick = useCallback(() => {
+    scrollTo('section-proof-strip');
+  }, [scrollTo]);
+
+  const handleExploreVerticalsClick = useCallback(() => {
+    scrollTo('section-verticals');
+  }, [scrollTo]);
+
   // Section refs for discrete entrance and cover animations (Effect 1 & Effect 2)
   const sectionHeroRef = useRef<HTMLElement>(null);
   const sectionProofStripRef = useRef<HTMLElement>(null);
@@ -308,7 +183,6 @@ const PageShell = React.memo(function PageShell({
   const sectionProofRef = useRef<HTMLElement>(null);
   const sectionFaqRef = useRef<HTMLElement>(null);
   const sectionFinalCtaRef = useRef<HTMLElement>(null);
-  const heroGlowRef = useRef<HTMLDivElement>(null);
 
   // Keyboard navigation support between Hero and Section 1.5
   useEffect(() => {
@@ -342,6 +216,11 @@ const PageShell = React.memo(function PageShell({
    * - Scrubbed curtain transition between Hero & Section 1.5 + ambient glow depth parallax
    */
   useEffect(() => {
+    ScrollTrigger.config({
+      limitCallbacks: true,
+      ignoreMobileResize: true,
+    });
+
     const prefersReducedMotion =
       typeof window !== 'undefined' &&
       window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -357,7 +236,7 @@ const PageShell = React.memo(function PageShell({
       if (prefersReducedMotion) {
         gsap.set(
           [heroEyebrow, ...heroWords, ...heroSubWords, heroCtaGroup, heroScrollHint].filter(Boolean),
-          { clearProps: 'transform,opacity,clipPath' }
+          { clearProps: 'transform,opacity' }
         );
       } else {
         const heroTl = gsap.timeline({
@@ -365,7 +244,7 @@ const PageShell = React.memo(function PageShell({
           onComplete: () => {
             gsap.set(
               [heroEyebrow, ...heroWords, ...heroSubWords, heroCtaGroup, heroScrollHint].filter(Boolean),
-              { clearProps: 'transform,opacity,clipPath' }
+              { clearProps: 'transform,opacity' }
             );
           },
         });
@@ -435,6 +314,7 @@ const PageShell = React.memo(function PageShell({
           scale: 0.94,
           y: -24,
           ease: 'none',
+          force3D: true,
           scrollTrigger: {
             trigger: sectionProofStripRef.current,
             start: 'top bottom',
@@ -447,33 +327,13 @@ const PageShell = React.memo(function PageShell({
           opacity: 0.18,
           scale: 0.95,
           ease: 'none',
+          force3D: true,
           scrollTrigger: {
             trigger: sectionProofStripRef.current,
             start: 'top bottom',
             end: 'top top',
             scrub: true,
           },
-        });
-      }
-
-      // Ambient Glow Orbs Subtle Scroll Parallax
-      if (!prefersReducedMotion) {
-        const glowOrbs = gsap.utils.toArray<HTMLElement>('.ambient-glow-orb');
-        glowOrbs.forEach((orb, idx) => {
-          gsap.fromTo(
-            orb,
-            { y: idx % 2 === 0 ? -40 : 40 },
-            {
-              y: idx % 2 === 0 ? 60 : -60,
-              ease: 'none',
-              scrollTrigger: {
-                trigger: orb.parentElement || document.body,
-                start: 'top bottom',
-                end: 'bottom top',
-                scrub: 1.4,
-              },
-            }
-          );
         });
       }
 
@@ -552,7 +412,7 @@ const PageShell = React.memo(function PageShell({
           );
         }
 
-        return [tag, ...Array.from(headlineWords), ...Array.from(sublineWords), ctaWrap].filter(
+        return [tag, ctaWrap].filter(
           (el): el is Element => el !== null
         );
       };
@@ -568,7 +428,7 @@ const PageShell = React.memo(function PageShell({
               const allTargets = section.querySelectorAll(
                 '.section-tag, .headline-word, .subline-word, .section-cta-wrap, .horizon-word, .section-reveal-item, .section-callout-box'
               );
-              gsap.set(allTargets, { clearProps: 'transform,opacity,clipPath' });
+              gsap.set(allTargets, { clearProps: 'transform,opacity' });
               return;
             }
 
@@ -579,9 +439,10 @@ const PageShell = React.memo(function PageShell({
                 start: cfg.startDesktop || 'top 76%',
                 toggleActions: 'play none none none',
                 once: true,
+                fastScrollEnd: true,
               },
               onComplete: () => {
-                gsap.set(clearedTargets, { clearProps: 'transform,opacity,clipPath' });
+                gsap.set(clearedTargets, { clearProps: 'transform,opacity' });
               },
             });
 
@@ -677,13 +538,14 @@ const PageShell = React.memo(function PageShell({
                 {
                   yPercent: 0,
                   opacity: 1,
-                  duration: cfg.wordDuration ?? 0.42,
-                  stagger: cfg.wordStagger ?? 0.011,
+                  duration: cfg.wordDuration ?? 0.36,
+                  stagger: cfg.wordStagger ?? 0.008,
                   ease: 'power2.out',
+                  force3D: false,
                 },
-                0.34
+                0.30
               );
-              clearedTargets.push(...bodyWords);
+              clearedTargets.push(...bodyWords.slice(0, 0));
             }
           });
         });
@@ -698,7 +560,7 @@ const PageShell = React.memo(function PageShell({
               const allTargets = section.querySelectorAll(
                 '.section-tag, .headline-word, .subline-word, .section-cta-wrap, .horizon-word, .section-reveal-item, .section-callout-box'
               );
-              gsap.set(allTargets, { clearProps: 'transform,opacity,clipPath' });
+              gsap.set(allTargets, { clearProps: 'transform,opacity' });
               return;
             }
 
@@ -712,9 +574,10 @@ const PageShell = React.memo(function PageShell({
                 start: cfg.startMobile || 'top 84%',
                 toggleActions: 'play none none none',
                 once: true,
+                fastScrollEnd: true,
               },
               onComplete: () => {
-                gsap.set(headerCleared, { clearProps: 'transform,opacity,clipPath' });
+                gsap.set(headerCleared, { clearProps: 'transform,opacity' });
               },
             });
             headerCleared.push(...animateHeaderIntoTimeline(headerTl, section, 0));
@@ -740,7 +603,7 @@ const PageShell = React.memo(function PageShell({
                 { yPercent: 0, opacity: 1, duration: 0.40, stagger: 0.011, ease: 'power2.out' },
                 0.32
               );
-              headerCleared.push(...calloutWords);
+              headerCleared.push(...calloutWords.slice(0, 0));
             }
 
             // 2. Stacked visual panel / cards below
@@ -757,7 +620,7 @@ const PageShell = React.memo(function PageShell({
                 section.querySelectorAll('.card-word, .slider-word, .credibility-word')
               );
               const visualTriggerEl = visualTargets[0];
-              const visualCleared: Element[] = [...visualTargets, ...bodyWords];
+              const visualCleared: Element[] = [...visualTargets];
 
               const visualTl = gsap.timeline({
                 scrollTrigger: {
@@ -765,9 +628,10 @@ const PageShell = React.memo(function PageShell({
                   start: 'top 86%',
                   toggleActions: 'play none none none',
                   once: true,
+                  fastScrollEnd: true,
                 },
                 onComplete: () => {
-                  gsap.set(visualCleared, { clearProps: 'transform,opacity,clipPath' });
+                  gsap.set(visualCleared, { clearProps: 'transform,opacity' });
                 },
               });
 
@@ -903,6 +767,7 @@ const PageShell = React.memo(function PageShell({
                   start: 'top 78%',
                   toggleActions: 'play none none none',
                   once: true,
+                  fastScrollEnd: true,
                 },
                 onComplete: () => {
                   gsap.set(feelingWords, { clearProps: 'transform,opacity' });
@@ -922,14 +787,12 @@ const PageShell = React.memo(function PageShell({
       document.fonts.ready.then(() => {
         if (!fontsCancelled) {
           ScrollTrigger.refresh();
-          refreshSectionOffsets();
         }
       });
     }
 
     const delayedRefreshTimer = setTimeout(() => {
       ScrollTrigger.refresh();
-      refreshSectionOffsets();
     }, 250);
 
     return () => {
@@ -937,7 +800,7 @@ const PageShell = React.memo(function PageShell({
       clearTimeout(delayedRefreshTimer);
       ctx.revert();
     };
-  }, [lang, refreshSectionOffsets]);
+  }, [lang]);
 
   return (
     <div
@@ -945,363 +808,20 @@ const PageShell = React.memo(function PageShell({
       dir={isRTL ? 'rtl' : 'ltr'}
     >
       {/* ------------------------------------------------------------- */}
-      {/* GLOBAL BACKGROUND LAYER (Deep charcoal foundation + hero terracotta glow) */}
+      {/* TOP FLOATING GLASS NAVBAR (State-Isolated to prevent mid-scroll re-renders) */}
       {/* ------------------------------------------------------------- */}
-      <div className="fixed inset-0 pointer-events-none -z-20 overflow-hidden bg-black">
-        {/* Seamless deep charcoal gradient foundation */}
-        <div className="absolute inset-0 bg-black" />
-
-        {/* Primary Hero Warm Terracotta Glow (Centered on mobile, framed on right for desktop) */}
-        <div
-          ref={heroGlowRef}
-          className="absolute -top-[8vw] sm:-top-[6vw] left-1/2 -translate-x-1/2 lg:translate-x-0 lg:left-auto lg:right-[2vw] w-[720px] sm:w-[980px] lg:w-[1380px] h-[720px] sm:h-[980px] lg:h-[1260px] pointer-events-none"
-          style={{
-            background: 'radial-gradient(circle at center, rgba(184, 84, 56, 0.14) 0%, rgba(184, 84, 56, 0.05) 42%, transparent 70%)',
-          }}
-        />
-
-        {/* Soft Ambient Reach */}
-        <div
-          className="absolute -top-[2vw] sm:top-[2vw] left-1/2 -translate-x-1/2 lg:translate-x-0 lg:left-auto lg:right-[18vw] w-[580px] sm:w-[820px] lg:w-[1060px] h-[580px] sm:h-[820px] lg:h-[1060px] pointer-events-none"
-          style={{
-            background: 'radial-gradient(circle at center, rgba(184, 84, 56, 0.06) 0%, rgba(184, 84, 56, 0.02) 45%, transparent 70%)',
-          }}
-        />
-
-        {/* Subtle Architectural Stipple Grain Texture */}
-        <div
-          className="absolute inset-0 opacity-[0.022] mix-blend-screen pointer-events-none"
-          style={{
-            backgroundImage: `radial-gradient(circle at 1px 1px, rgba(255,255,255,0.45) 1px, transparent 0)`,
-            backgroundSize: '36px 36px',
-          }}
-        />
-      </div>
-
-      {/* Rhythmic Glow Accents anchored to key moments throughout page height */}
-      <div className="absolute inset-0 pointer-events-none -z-10 overflow-hidden">
-        {/* Glow Accent 1: Problem / Shift Transition (Warm Terracotta Accent) */}
-        <div
-          className="ambient-glow-orb absolute top-[16%] -left-[14vw] w-[760px] sm:w-[1060px] h-[760px] sm:h-[1060px]"
-          style={{
-            background: 'radial-gradient(circle at center, rgba(184, 84, 56, 0.07) 0%, rgba(184, 84, 56, 0.025) 45%, transparent 72%)',
-          }}
-        />
-
-        {/* Glow Accent 2: Shift Unified Core (Warm Terracotta Accent) */}
-        <div
-          className="ambient-glow-orb absolute top-[32%] -right-[10vw] w-[700px] sm:w-[960px] h-[700px] sm:h-[960px]"
-          style={{
-            background: 'radial-gradient(circle at center, rgba(184, 84, 56, 0.07) 0%, rgba(184, 84, 56, 0.025) 45%, transparent 72%)',
-          }}
-        />
-
-        {/* Glow Accent 3: Verticals & Interactive Floor Desk (Subtle Amber/Terracotta glow) */}
-        <div
-          className="ambient-glow-orb absolute top-[54%] -left-[12vw] w-[760px] sm:w-[1000px] h-[760px] sm:h-[1000px]"
-          style={{
-            background: 'radial-gradient(circle at center, rgba(184, 84, 56, 0.06) 0%, rgba(184, 84, 56, 0.02) 45%, transparent 72%)',
-          }}
-        />
-
-        {/* Glow Accent 4: Pricing & Final CTA (Warm Terracotta Accent) */}
-        <div
-          className="ambient-glow-orb absolute top-[76%] right-[0vw] w-[820px] sm:w-[1120px] h-[820px] sm:h-[1120px]"
-          style={{
-            background: 'radial-gradient(circle at center, rgba(184, 84, 56, 0.10) 0%, rgba(184, 84, 56, 0.035) 45%, transparent 72%)',
-          }}
-        />
-      </div>
-
-      {/* ------------------------------------------------------------- */}
-      {/* TOP FLOATING GLASS NAVBAR */}
-      {/* Detached, rounded-full, balanced spacing with responsive mobile menu */}
-      {/* ------------------------------------------------------------- */}
-      <div
-        className={`fixed top-3 sm:top-4 left-3 sm:left-6 right-3 sm:right-6 max-w-6xl mx-auto z-50 transition-all duration-300 ease-out ${
-          isNavVisible || isMobileMenuOpen
-            ? 'translate-y-0 opacity-100 pointer-events-auto'
-            : '-translate-y-28 opacity-0 pointer-events-none'
-        }`}
-      >
-        <header
-          id="atrium-nav"
-          className={`w-full transition-all duration-300 ease-out flex items-center justify-between rounded-full border ${
-            isScrolled
-              ? 'py-2 px-3.5 sm:px-5 bg-black/92 border-white/[0.12] shadow-[0_12px_40px_rgba(0,0,0,0.7),inset_0_1px_0_rgba(255,255,255,0.12)]'
-              : 'py-2.5 px-4 sm:px-6 bg-black/85 border-white/[0.08] shadow-[0_8px_32px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.06)]'
-          }`}
-        >
-          <button
-            type="button"
-            onClick={() => {
-              scrollTo('section-hero');
-              setIsMobileMenuOpen(false);
-            }}
-            className="flex items-center cursor-pointer group shrink-0 text-left rtl:text-right focus:outline-none focus-visible:ring-2 focus-visible:ring-[#b85438] rounded-full"
-            aria-label="Atrium Home"
-          >
-            {/* Official Atrium Logo with transparent background and BY FROM SCRATCH */}
-            <AtriumBrandLogo size={28} showText={true} />
-          </button>
-
-          {/* Desktop Anchor Navigation */}
-          <nav
-            aria-label="Main navigation"
-            className="hidden md:flex items-center gap-3 lg:gap-4 xl:gap-5 text-xs font-medium"
-          >
-            <button
-              type="button"
-              onClick={() => scrollTo('section-proof-strip')}
-              className={`transition cursor-pointer whitespace-nowrap ${
-                activeSectionId === 'section-proof-strip'
-                  ? 'text-[#e06b48] font-semibold'
-                  : 'text-stone-300 hover:text-white'
-              }`}
-            >
-              {content.nav.proof}
-            </button>
-            <button
-              type="button"
-              onClick={() => scrollTo('section-problem')}
-              className={`transition cursor-pointer whitespace-nowrap ${
-                activeSectionId === 'section-problem'
-                  ? 'text-[#e06b48] font-semibold'
-                  : 'text-stone-300 hover:text-white'
-              }`}
-            >
-              {content.nav.problem}
-            </button>
-            <button
-              type="button"
-              onClick={() => scrollTo('section-shift')}
-              className={`transition cursor-pointer whitespace-nowrap ${
-                activeSectionId === 'section-shift'
-                  ? 'text-[#e06b48] font-semibold'
-                  : 'text-stone-300 hover:text-white'
-              }`}
-            >
-              {content.nav.shift}
-            </button>
-            <button
-              type="button"
-              onClick={() => scrollTo('section-how-it-works')}
-              className={`transition cursor-pointer whitespace-nowrap hidden lg:block ${
-                activeSectionId === 'section-how-it-works'
-                  ? 'text-[#e06b48] font-semibold'
-                  : 'text-stone-300 hover:text-white'
-              }`}
-            >
-              {content.nav.howItWorks}
-            </button>
-            <button
-              type="button"
-              onClick={() => scrollTo('section-verticals')}
-              className={`transition cursor-pointer whitespace-nowrap ${
-                activeSectionId === 'section-verticals'
-                  ? 'text-[#e06b48] font-semibold'
-                  : 'text-stone-300 hover:text-white'
-              }`}
-            >
-              {content.nav.verticals}
-            </button>
-            <button
-              type="button"
-              onClick={() => scrollTo('section-differentiation')}
-              className={`transition cursor-pointer whitespace-nowrap hidden lg:block ${
-                activeSectionId === 'section-differentiation'
-                  ? 'text-[#e06b48] font-semibold'
-                  : 'text-stone-300 hover:text-white'
-              }`}
-            >
-              {content.nav.whyAtrium}
-            </button>
-            <button
-              type="button"
-              onClick={() => scrollTo('section-pricing')}
-              className={`transition cursor-pointer whitespace-nowrap ${
-                activeSectionId === 'section-pricing'
-                  ? 'text-[#e06b48] font-semibold'
-                  : 'text-stone-300 hover:text-white'
-              }`}
-            >
-              {content.nav.pricing}
-            </button>
-          </nav>
-
-          {/* Action Controls: Desktop Language Switcher, Compact Walkthrough button & Mobile Menu Toggle */}
-          <div className="flex items-center gap-2 shrink-0">
-            <div
-              role="group"
-              aria-label="Language"
-              className="hidden md:flex items-center gap-0.5 bg-white/[0.05] p-0.5 rounded-full border border-white/[0.1]"
-            >
-              {(['en', 'fr', 'ar'] as Language[]).map((code) => (
-                <button
-                  key={code}
-                  type="button"
-                  onClick={() => onLanguageChange(code)}
-                  aria-pressed={lang === code}
-                  className={`px-2 py-1 rounded-full text-[10px] font-mono font-semibold uppercase transition cursor-pointer ${
-                    lang === code
-                      ? 'bg-[#b85438] text-white shadow-sm'
-                      : 'text-stone-400 hover:text-white'
-                  }`}
-                >
-                  {code}
-                </button>
-              ))}
-            </div>
-
-            <button
-              type="button"
-              onClick={onOpenDemo}
-              className="px-3.5 sm:px-4 py-1.5 rounded-full bg-[#b85438] hover:bg-[#a04830] text-white font-medium text-[11px] sm:text-xs tracking-wide transition shadow-md shadow-[#b85438]/20 cursor-pointer whitespace-nowrap shrink-0"
-            >
-              {content.nav.bookDemo}
-            </button>
-
-            {/* Mobile Hamburger Menu Toggle Button */}
-            <button
-              type="button"
-              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              aria-label="Toggle navigation menu"
-              aria-expanded={isMobileMenuOpen}
-              className="md:hidden w-8 h-8 rounded-full flex items-center justify-center text-stone-300 hover:text-white bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.1] transition cursor-pointer shrink-0"
-            >
-              {isMobileMenuOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
-            </button>
-          </div>
-        </header>
-
-        {/* Mobile Navigation Dropdown Drawer */}
-        {isMobileMenuOpen && (
-          <div className="md:hidden mt-2 p-4 rounded-2xl bg-stone-950/95 backdrop-blur-2xl border border-white/[0.14] shadow-[0_16px_48px_rgba(0,0,0,0.9)] flex flex-col gap-1 text-sm font-medium">
-            <button
-              type="button"
-              onClick={() => {
-                scrollTo('section-proof-strip');
-                setIsMobileMenuOpen(false);
-              }}
-              className="text-left rtl:text-right px-3 py-2.5 rounded-lg text-stone-300 hover:text-white hover:bg-white/[0.06] transition flex items-center justify-between"
-            >
-              <span>{content.nav.proof}</span>
-              <ChevronRight className="w-3.5 h-3.5 text-stone-500 rtl:rotate-180" />
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                scrollTo('section-problem');
-                setIsMobileMenuOpen(false);
-              }}
-              className="text-left rtl:text-right px-3 py-2.5 rounded-lg text-stone-300 hover:text-white hover:bg-white/[0.06] transition flex items-center justify-between"
-            >
-              <span>{content.nav.problem}</span>
-              <ChevronRight className="w-3.5 h-3.5 text-stone-500 rtl:rotate-180" />
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                scrollTo('section-shift');
-                setIsMobileMenuOpen(false);
-              }}
-              className="text-left rtl:text-right px-3 py-2.5 rounded-lg text-stone-300 hover:text-white hover:bg-white/[0.06] transition flex items-center justify-between"
-            >
-              <span>{content.nav.shift}</span>
-              <ChevronRight className="w-3.5 h-3.5 text-stone-500 rtl:rotate-180" />
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                scrollTo('section-how-it-works');
-                setIsMobileMenuOpen(false);
-              }}
-              className="text-left rtl:text-right px-3 py-2.5 rounded-lg text-stone-300 hover:text-white hover:bg-white/[0.06] transition flex items-center justify-between"
-            >
-              <span>{content.nav.howItWorks}</span>
-              <ChevronRight className="w-3.5 h-3.5 text-stone-500 rtl:rotate-180" />
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                scrollTo('section-verticals');
-                setIsMobileMenuOpen(false);
-              }}
-              className="text-left rtl:text-right px-3 py-2.5 rounded-lg text-stone-300 hover:text-white hover:bg-white/[0.06] transition flex items-center justify-between"
-            >
-              <span>{content.nav.verticals}</span>
-              <ChevronRight className="w-3.5 h-3.5 text-stone-500 rtl:rotate-180" />
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                scrollTo('section-differentiation');
-                setIsMobileMenuOpen(false);
-              }}
-              className="text-left rtl:text-right px-3 py-2.5 rounded-lg text-stone-300 hover:text-white hover:bg-white/[0.06] transition flex items-center justify-between"
-            >
-              <span>{content.nav.whyAtrium}</span>
-              <ChevronRight className="w-3.5 h-3.5 text-stone-500 rtl:rotate-180" />
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                scrollTo('section-pricing');
-                setIsMobileMenuOpen(false);
-              }}
-              className="text-left rtl:text-right px-3 py-2.5 rounded-lg text-stone-300 hover:text-white hover:bg-white/[0.06] transition flex items-center justify-between"
-            >
-              <span>{content.nav.pricing}</span>
-              <ChevronRight className="w-3.5 h-3.5 text-stone-500 rtl:rotate-180" />
-            </button>
-
-            {/* Bottom controls: Language selector and Walkthrough trigger */}
-            <div className="mt-2 pt-3 border-t border-white/[0.08] flex items-center justify-between gap-3">
-              <div className="flex items-center gap-1 bg-white/[0.05] p-1 rounded-lg border border-white/[0.08]">
-                <button
-                  type="button"
-                  onClick={() => onLanguageChange('en')}
-                  className={`px-2 py-1 rounded text-[11px] font-semibold transition ${
-                    lang === 'en' ? 'bg-[#b85438] text-white' : 'text-stone-400 hover:text-white'
-                  }`}
-                >
-                  EN
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onLanguageChange('fr')}
-                  className={`px-2 py-1 rounded text-[11px] font-semibold transition ${
-                    lang === 'fr' ? 'bg-[#b85438] text-white' : 'text-stone-400 hover:text-white'
-                  }`}
-                >
-                  FR
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onLanguageChange('ar')}
-                  className={`px-2 py-1 rounded text-[11px] font-semibold transition ${
-                    lang === 'ar' ? 'bg-[#b85438] text-white' : 'text-stone-400 hover:text-white'
-                  }`}
-                >
-                  AR
-                </button>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setIsMobileMenuOpen(false);
-                  onOpenDemo();
-                }}
-                className="flex-1 py-2 rounded-lg bg-[#b85438] hover:bg-[#a04830] text-white font-semibold text-xs tracking-wider uppercase transition shadow-md shadow-[#b85438]/20 flex items-center justify-center gap-1.5"
-              >
-                <Calendar className="w-3.5 h-3.5" />
-                <span>{content.nav.bookDemo}</span>
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
+      <FloatingNav
+        lang={lang}
+        navCopy={content.nav}
+        onLanguageChange={onLanguageChange}
+        onOpenDemo={onOpenDemo}
+        onScrollToSection={scrollTo}
+        isSnappingRef={isSnappingRef}
+        isTransitioningRef={isTransitioningRef}
+        unlockSnap={unlockSnap}
+        engageMomentumGuard={engageMomentumGuard}
+        snapTimerRef={snapTimerRef}
+      />
 
       {/* ------------------------------------------------------------- */}
       {/* HERO & CURTAIN TRANSITION TRACK */}
@@ -1388,7 +908,7 @@ const PageShell = React.memo(function PageShell({
             <div className="hero-scroll-hint pt-2 sm:pt-3 lg:pt-4 flex items-center relative z-10 pointer-events-auto">
               <button
                 type="button"
-                onClick={() => scrollTo('section-proof-strip')}
+                onClick={handleHeroScrollClick}
                 className="flex items-center gap-2 text-[11px] font-mono text-stone-400 hover:text-stone-200 transition cursor-pointer group py-1"
               >
                 <ArrowDownRight className="w-3.5 h-3.5 text-[#b85438] group-hover:translate-y-0.5 group-hover:translate-x-0.5 rtl:-scale-x-100 transition-transform shrink-0" />
@@ -1405,7 +925,7 @@ const PageShell = React.memo(function PageShell({
         <section
           id="section-proof-strip"
           ref={sectionProofStripRef}
-          className="relative z-20 w-full min-h-[100dvh] py-16 sm:py-20 lg:py-24 px-6 sm:px-12 border-t border-stone-800/80 bg-[#09090b] shadow-[0_-40px_90px_rgba(0,0,0,0.98),0_-1px_0_rgba(255,255,255,0.06)] flex flex-col justify-center"
+          className="section-contain relative z-20 w-full min-h-[100dvh] py-16 sm:py-20 lg:py-24 px-6 sm:px-12 border-t border-stone-800/80 bg-[#09090b] shadow-[0_-8px_16px_rgba(0,0,0,0.65)] flex flex-col justify-center"
         >
           {/* Ambient studio light catch on rising sheet edge */}
           <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-5xl h-px bg-gradient-to-r from-transparent via-[#b85438]/50 to-transparent pointer-events-none" />
@@ -1423,13 +943,13 @@ const PageShell = React.memo(function PageShell({
                   className="proof-strip-header mb-0"
                   maskedHorizon={true}
                   theme="dark"
-                  ctaButton={{ text: content.tryStartButton, onClick: onOpenDemo }}
+                  ctaButton={tryStartCta}
                 />
 
                 <div className="pt-2">
                   <button
                     type="button"
-                    onClick={() => scrollTo('section-verticals')}
+                    onClick={handleExploreVerticalsClick}
                     className="proof-explore-link shrink-0 text-xs font-mono text-[#e06b48] hover:text-[#f28e72] transition underline underline-offset-4 flex items-center gap-1.5 cursor-pointer"
                   >
                     <span>{ui.proofStrip.exploreLink}</span>
@@ -1442,10 +962,7 @@ const PageShell = React.memo(function PageShell({
                 <CategoryCardSwiper
                   categories={content.proofStrip.categories}
                   lang={lang}
-                  onSelectCategory={(catId) => {
-                    setActiveVertical(catId);
-                    scrollTo('section-verticals');
-                  }}
+                  onSelectCategory={handleSelectCategory}
                 />
               </div>
             </div>
@@ -1461,7 +978,7 @@ const PageShell = React.memo(function PageShell({
       <section
         id="section-problem"
         ref={sectionProblemRef}
-        className="relative z-20 w-full py-24 sm:py-32 px-6 sm:px-12 border-t border-[#7d2f1a] bg-[#963c24] text-white shadow-[0_-30px_70px_rgba(0,0,0,0.5)] flex items-center justify-center"
+        className="section-contain relative z-20 w-full py-24 sm:py-32 px-6 sm:px-12 border-t border-[#7d2f1a] bg-[#963c24] text-white shadow-[0_-6px_14px_rgba(0,0,0,0.38)] flex items-center justify-center"
       >
         <div className="max-w-7xl mx-auto w-full">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
@@ -1482,7 +999,7 @@ const PageShell = React.memo(function PageShell({
                 maskedHorizon={true}
                 theme="terracotta"
                 align="left"
-                ctaButton={{ text: content.tryStartButton, onClick: onOpenDemo }}
+                ctaButton={tryStartCta}
               />
 
               <div className="problem-callout p-5 rounded-2xl bg-black/25 border border-white/10 text-xs text-stone-100 font-sans leading-relaxed space-y-2 text-left rtl:text-right">
@@ -1509,7 +1026,7 @@ const PageShell = React.memo(function PageShell({
       <section
         id="section-shift"
         ref={sectionShiftRef}
-        className="relative z-20 w-full py-24 sm:py-32 px-6 sm:px-12 border-t border-stone-200 bg-[#fbfbfa] text-stone-900 shadow-[0_-20px_50px_rgba(0,0,0,0.06)] flex items-center justify-center"
+        className="section-contain relative z-20 w-full py-24 sm:py-32 px-6 sm:px-12 border-t border-stone-200 bg-[#fbfbfa] text-stone-900 shadow-[0_-6px_12px_rgba(0,0,0,0.04)] flex items-center justify-center"
       >
         <div className="max-w-7xl mx-auto w-full">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
@@ -1525,7 +1042,7 @@ const PageShell = React.memo(function PageShell({
                 maskedHorizon={true}
                 theme="light"
                 align="left"
-                ctaButton={{ text: content.tryStartButton, onClick: onOpenDemo }}
+                ctaButton={tryStartCta}
               />
 
               <div className="shift-callout p-6 rounded-2xl bg-white border border-stone-200 shadow-md flex items-center gap-3.5 text-xs font-mono text-stone-700 text-left rtl:text-right">
@@ -1554,7 +1071,7 @@ const PageShell = React.memo(function PageShell({
       <div
         id="section-feeling"
         ref={sectionFeelingRef}
-        className="relative z-20 w-full min-h-[60vh] sm:min-h-[75vh] py-20 px-6 sm:px-12 text-center border-t border-stone-800/80 bg-[#0d0e12] shadow-[0_-30px_70px_rgba(0,0,0,0.95)] flex items-center justify-center"
+        className="section-contain relative z-20 w-full min-h-[60vh] sm:min-h-[75vh] py-20 px-6 sm:px-12 text-center border-t border-stone-800/80 bg-[#0d0e12] shadow-[0_-6px_14px_rgba(0,0,0,0.5)] flex items-center justify-center"
       >
         <div className="max-w-3xl mx-auto py-1">
           <p className="section-headline font-editorial text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-stone-300 leading-tight">
@@ -1571,7 +1088,7 @@ const PageShell = React.memo(function PageShell({
       <section
         id="section-how-it-works"
         ref={sectionHowRef}
-        className="relative z-20 w-full py-24 sm:py-32 px-6 sm:px-12 border-t border-[#782c18] bg-[#8f371f] text-white shadow-[0_-30px_70px_rgba(0,0,0,0.5)] flex items-center justify-center"
+        className="section-contain-style relative z-20 w-full py-24 sm:py-32 px-6 sm:px-12 border-t border-[#782c18] bg-[#8f371f] text-white shadow-[0_-6px_14px_rgba(0,0,0,0.38)] flex items-center justify-center"
       >
         <div className="max-w-7xl mx-auto w-full">
           <PinnedHowItWorks content={content} lang={lang} onOpenDemo={onOpenDemo} theme="terracotta" />
@@ -1586,7 +1103,7 @@ const PageShell = React.memo(function PageShell({
       <section
         id="section-verticals"
         ref={sectionVerticalsRef}
-        className="relative z-20 w-full py-24 sm:py-32 px-6 sm:px-12 border-t border-stone-200 bg-[#f7f6f2] text-stone-900 shadow-[0_-20px_50px_rgba(0,0,0,0.06)]"
+        className="section-contain relative z-20 w-full py-24 sm:py-32 px-6 sm:px-12 border-t border-stone-200 bg-[#f7f6f2] text-stone-900 shadow-[0_-6px_12px_rgba(0,0,0,0.04)]"
       >
         <div className="max-w-7xl mx-auto">
           <SectionHeader
@@ -1599,7 +1116,7 @@ const PageShell = React.memo(function PageShell({
             className="verticals-header mb-8"
             maskedHorizon={true}
             theme="light"
-            ctaButton={{ text: content.tryStartButton, onClick: onOpenDemo }}
+            ctaButton={tryStartCta}
           />
 
           {/* Vertical Selector Tabs on Light Canvas */}
@@ -1735,7 +1252,7 @@ const PageShell = React.memo(function PageShell({
       <section
         id="section-differentiation"
         ref={sectionDiffRef}
-        className="relative z-20 w-full py-24 sm:py-32 px-6 sm:px-12 border-t border-stone-800/80 bg-[#09090b] shadow-[0_-30px_70px_rgba(0,0,0,0.95)] flex items-center justify-center"
+        className="section-contain relative z-20 w-full py-24 sm:py-32 px-6 sm:px-12 border-t border-stone-800/80 bg-[#09090b] shadow-[0_-6px_14px_rgba(0,0,0,0.5)] flex items-center justify-center"
       >
         <div className="max-w-7xl mx-auto w-full">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
@@ -1779,7 +1296,7 @@ const PageShell = React.memo(function PageShell({
                 className="diff-header mb-0"
                 maskedHorizon={true}
                 theme="dark"
-                ctaButton={{ text: content.tryStartButton, onClick: onOpenDemo }}
+                ctaButton={tryStartCta}
               />
 
               <div className="diff-callout p-5 rounded-2xl bg-stone-900/60 border border-stone-800 text-xs text-stone-300 font-sans leading-relaxed space-y-2.5 text-left rtl:text-right">
@@ -1806,7 +1323,7 @@ const PageShell = React.memo(function PageShell({
       <section
         id="section-dashboard"
         ref={sectionDashboardRef}
-        className="relative z-20 w-full py-24 sm:py-32 px-6 sm:px-12 border-t border-[#7d2f1a] bg-[#963c24] text-white shadow-[0_-30px_70px_rgba(0,0,0,0.5)] flex items-center justify-center"
+        className="section-contain-style relative z-20 w-full py-24 sm:py-32 px-6 sm:px-12 border-t border-[#7d2f1a] bg-[#963c24] text-white shadow-[0_-6px_14px_rgba(0,0,0,0.38)] flex items-center justify-center"
       >
         <div className="max-w-7xl mx-auto w-full">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
@@ -1822,7 +1339,7 @@ const PageShell = React.memo(function PageShell({
                 className="dashboard-header mb-0"
                 maskedHorizon={true}
                 theme="terracotta"
-                ctaButton={{ text: content.tryStartButton, onClick: onOpenDemo }}
+                ctaButton={tryStartCta}
               />
 
               <div className="dashboard-callout p-5 rounded-2xl bg-black/25 border border-white/10 text-xs text-stone-100 font-sans leading-relaxed space-y-2 text-left rtl:text-right">
@@ -1971,7 +1488,7 @@ const PageShell = React.memo(function PageShell({
       <section
         id="section-slider"
         ref={sectionSliderRef}
-        className="relative z-20 w-full py-24 sm:py-32 px-6 sm:px-12 border-t border-stone-200 bg-[#faf9f5] text-stone-900 shadow-inner flex items-center justify-center"
+        className="section-contain relative z-20 w-full py-24 sm:py-32 px-6 sm:px-12 border-t border-stone-200 bg-[#faf9f5] text-stone-900 shadow-inner flex items-center justify-center"
       >
         <div className="max-w-7xl mx-auto w-full">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
@@ -1992,7 +1509,7 @@ const PageShell = React.memo(function PageShell({
                 className="slider-header mb-0"
                 maskedHorizon={true}
                 theme="light"
-                ctaButton={{ text: content.tryStartButton, onClick: onOpenDemo }}
+                ctaButton={tryStartCta}
               />
 
               <div className="space-y-3.5 pt-2">
@@ -2044,7 +1561,7 @@ const PageShell = React.memo(function PageShell({
       <section
         id="section-pricing"
         ref={sectionPricingRef}
-        className="relative z-20 w-full py-24 sm:py-32 px-6 sm:px-12 border-t border-[#7d2f1a] bg-[#963c24] text-white shadow-[0_-30px_70px_rgba(0,0,0,0.5)]"
+        className="section-contain-style relative z-20 w-full py-24 sm:py-32 px-6 sm:px-12 border-t border-[#7d2f1a] bg-[#963c24] text-white shadow-[0_-6px_14px_rgba(0,0,0,0.38)]"
       >
         <div className="max-w-7xl mx-auto">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
@@ -2060,7 +1577,7 @@ const PageShell = React.memo(function PageShell({
                 className="pricing-header mb-0"
                 maskedHorizon={true}
                 theme="terracotta"
-                ctaButton={{ text: content.tryStartButton, onClick: onOpenDemo }}
+                ctaButton={tryStartCta}
               />
 
               {/* Risk Reversal Assurance Banner */}
@@ -2145,7 +1662,7 @@ const PageShell = React.memo(function PageShell({
       <section
         id="section-proof"
         ref={sectionProofRef}
-        className="relative z-20 w-full py-24 sm:py-32 px-6 sm:px-12 border-t border-stone-800/80 bg-[#09090b] shadow-[0_-30px_70px_rgba(0,0,0,0.95)] flex items-center justify-center"
+        className="section-contain relative z-20 w-full py-24 sm:py-32 px-6 sm:px-12 border-t border-stone-800/80 bg-[#09090b] shadow-[0_-6px_14px_rgba(0,0,0,0.5)] flex items-center justify-center"
       >
         <div className="max-w-7xl mx-auto w-full">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
@@ -2161,7 +1678,7 @@ const PageShell = React.memo(function PageShell({
                 className="credibility-header mb-0"
                 maskedHorizon={true}
                 theme="dark"
-                ctaButton={{ text: content.tryStartButton, onClick: onOpenDemo }}
+                ctaButton={tryStartCta}
               />
 
               <div className="credibility-badge inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-stone-900/90 border border-stone-800 text-stone-400 font-mono text-xs">
@@ -2210,7 +1727,7 @@ const PageShell = React.memo(function PageShell({
       <section
         id="section-final-cta"
         ref={sectionFinalCtaRef}
-        className="relative z-20 w-full min-h-[60vh] py-24 sm:py-32 px-6 sm:px-12 border-t border-[#782c18] bg-[#8f371f] text-white shadow-[0_-30px_70px_rgba(0,0,0,0.6)] flex items-center justify-center"
+        className="section-contain relative z-20 w-full min-h-[60vh] py-24 sm:py-32 px-6 sm:px-12 border-t border-[#782c18] bg-[#8f371f] text-white shadow-[0_-6px_14px_rgba(0,0,0,0.4)] flex items-center justify-center"
       >
         <div className="max-w-6xl mx-auto w-full">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
@@ -2226,7 +1743,7 @@ const PageShell = React.memo(function PageShell({
                 className="final-cta-header mb-0"
                 maskedHorizon={true}
                 theme="terracotta"
-                ctaButton={{ text: content.finalCta.ctaButton, onClick: onOpenDemo }}
+                ctaButton={finalCtaConfig}
               />
             </div>
 
@@ -2269,7 +1786,7 @@ const PageShell = React.memo(function PageShell({
       {/* SECTION 11 — FOOTER */}
       {/* Standard: contact info, social links, legal, language toggle */}
       {/* ------------------------------------------------------------- */}
-      <footer className="relative z-[110] border-t border-stone-800/80 py-16 px-6 sm:px-12 bg-stone-950 shadow-[0_-30px_70px_rgba(0,0,0,0.95)] text-xs font-mono text-stone-400">
+      <footer className="section-contain relative z-[110] border-t border-stone-800/80 py-16 px-6 sm:px-12 bg-stone-950 shadow-[0_-6px_14px_rgba(0,0,0,0.5)] text-xs font-mono text-stone-400">
         <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-10 mb-12 text-left rtl:text-right">
           {/* Brand Info */}
           <div className="space-y-3 md:col-span-2">

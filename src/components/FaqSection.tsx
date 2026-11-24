@@ -1,4 +1,4 @@
-import React, { useState, forwardRef } from 'react';
+import React, { useState, forwardRef, memo, useMemo } from 'react';
 import { HelpCircle, ChevronDown, ArrowRight, MessageSquare } from 'lucide-react';
 import { LandingContent, Language } from '../content/copy';
 import { UI_COPY } from '../content/uiCopy';
@@ -13,7 +13,7 @@ interface FaqSectionProps {
   theme?: 'dark' | 'light';
 }
 
-const FaqSection = forwardRef<HTMLElement, FaqSectionProps>(function FaqSection(
+const FaqSection = memo(forwardRef<HTMLElement, FaqSectionProps>(function FaqSection(
   { content, lang, phone, onOpenDemo, theme = 'light' },
   ref
 ) {
@@ -28,18 +28,22 @@ const FaqSection = forwardRef<HTMLElement, FaqSectionProps>(function FaqSection(
   const isLight = theme === 'light';
 
   // Schema.org FAQPage structured data for rich search engine result snippets
-  const faqSchema = {
-    '@context': 'https://schema.org',
-    '@type': 'FAQPage',
-    mainEntity: content.items.map((item) => ({
-      '@type': 'Question',
-      name: item.q,
-      acceptedAnswer: {
-        '@type': 'Answer',
-        text: item.a,
-      },
-    })),
-  };
+  const faqSchemaJson = useMemo(
+    () =>
+      JSON.stringify({
+        '@context': 'https://schema.org',
+        '@type': 'FAQPage',
+        mainEntity: content.items.map((item) => ({
+          '@type': 'Question',
+          name: item.q,
+          acceptedAnswer: {
+            '@type': 'Answer',
+            text: item.a,
+          },
+        })),
+      }),
+    [content.items]
+  );
 
   // Clean international WhatsApp link
   const cleanPhone = phone.replace(/[^0-9]/g, '');
@@ -51,17 +55,17 @@ const FaqSection = forwardRef<HTMLElement, FaqSectionProps>(function FaqSection(
     <section
       ref={ref}
       id="section-faq"
-      className={`relative z-20 w-full py-24 sm:py-32 px-6 sm:px-12 border-t ${
+      className={`section-contain-style relative z-20 w-full py-24 sm:py-32 px-6 sm:px-12 border-t ${
         isLight
           ? 'bg-[#fbfbfa] text-stone-900 border-stone-200'
-          : 'bg-stone-950 text-white border-stone-800/80 shadow-[0_-30px_70px_rgba(0,0,0,0.95)]'
+          : 'bg-stone-950 text-white border-stone-800/80 shadow-[0_-6px_14px_rgba(0,0,0,0.5)]'
       }`}
       dir={isRTL ? 'rtl' : 'ltr'}
     >
       {/* Schema.org FAQPage structured data */}
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}
+        dangerouslySetInnerHTML={{ __html: faqSchemaJson }}
       />
 
       <div className="max-w-6xl mx-auto">
@@ -234,6 +238,6 @@ const FaqSection = forwardRef<HTMLElement, FaqSectionProps>(function FaqSection(
       </div>
     </section>
   );
-});
+}));
 
 export default FaqSection;

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, memo } from 'react';
 import { Sparkles, ArrowRight, Workflow, Calendar } from 'lucide-react';
 import { LandingContent, Language } from '../content/copy';
 import { UI_COPY } from '../content/uiCopy';
@@ -17,11 +17,15 @@ interface PinnedHowItWorksProps {
  * Sequential step walkthrough with synchronized mock dashboard states.
  * Users can click through the 4 steps or view the responsive breakdown.
  */
-export function PinnedHowItWorks({ content, lang, onOpenDemo, theme = 'terracotta' }: PinnedHowItWorksProps) {
+export const PinnedHowItWorks = memo(function PinnedHowItWorks({ content, lang, onOpenDemo, theme = 'terracotta' }: PinnedHowItWorksProps) {
   const [activeStepIndex, setActiveStepIndex] = useState(0);
   const steps = content.howItWorks.steps;
   const activeStep = steps[activeStepIndex];
   const ui = UI_COPY[lang].howItWorks;
+  const ctaButton = useMemo(
+    () => ({ text: content.tryStartButton, onClick: onOpenDemo }),
+    [content.tryStartButton, onOpenDemo]
+  );
 
   return (
     <div className="w-full" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
@@ -34,7 +38,7 @@ export function PinnedHowItWorks({ content, lang, onOpenDemo, theme = 'terracott
         className="how-header"
         maskedHorizon={true}
         theme={theme}
-        ctaButton={{ text: content.tryStartButton, onClick: onOpenDemo }}
+        ctaButton={ctaButton}
       />
 
       {/* Interactive Walkthrough Layout: Steps Navigation on Left, Live Telemetry Canvas on Right */}
@@ -244,4 +248,4 @@ export function PinnedHowItWorks({ content, lang, onOpenDemo, theme = 'terracott
       </div>
     </div>
   );
-}
+});

@@ -1,4 +1,4 @@
-import React, { useRef, useCallback, useState, useEffect } from 'react';
+import React, { useRef, useCallback, useState, useEffect, memo } from 'react';
 import { MessageSquare, AlertCircle, CheckCircle2, SlidersHorizontal } from 'lucide-react';
 import { Language } from '../content/copy';
 import { UI_COPY } from '../content/uiCopy';
@@ -16,11 +16,12 @@ interface BeforeAfterSliderProps {
  * - Left: "Before Atrium" (Scattered WhatsApp messages, paper logs, manual register blind spots)
  * - Right: "With Atrium" (Unified synchronized floor desk, instant reconciliation, live telemetry)
  */
-export function BeforeAfterSlider({ lang, theme = 'dark' }: BeforeAfterSliderProps) {
+export const BeforeAfterSlider = memo(function BeforeAfterSlider({ lang, theme = 'dark' }: BeforeAfterSliderProps) {
   const [sliderValue, setSliderValue] = useState(50);
   const sliderPosRef = useRef(50);
   const isDraggingRef = useRef(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const containerRectRef = useRef<{ left: number; width: number } | null>(null);
   const leftLayerRef = useRef<HTMLDivElement>(null);
   const dividerRef = useRef<HTMLDivElement>(null);
   const cleanupDragRef = useRef<(() => void) | null>(null);
@@ -43,8 +44,13 @@ export function BeforeAfterSlider({ lang, theme = 'dark' }: BeforeAfterSliderPro
 
   const updateFromClientX = useCallback(
     (clientX: number) => {
-      if (!containerRef.current) return;
-      const rect = containerRef.current.getBoundingClientRect();
+      let rect = containerRectRef.current;
+      if (!rect && containerRef.current) {
+        const box = containerRef.current.getBoundingClientRect();
+        rect = { left: box.left, width: box.width };
+        containerRectRef.current = rect;
+      }
+      if (!rect) return;
       const clamped = clampSliderPercent(clientX, rect.left, rect.width);
       applyPosition(clamped);
     },
@@ -53,6 +59,7 @@ export function BeforeAfterSlider({ lang, theme = 'dark' }: BeforeAfterSliderPro
 
   const stopDragging = useCallback(() => {
     isDraggingRef.current = false;
+    containerRectRef.current = null;
     if (cleanupDragRef.current) {
       cleanupDragRef.current();
       cleanupDragRef.current = null;
@@ -68,6 +75,10 @@ export function BeforeAfterSlider({ lang, theme = 'dark' }: BeforeAfterSliderPro
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (e.button !== 0 && e.pointerType === 'mouse') return;
     isDraggingRef.current = true;
+    if (containerRef.current) {
+      const box = containerRef.current.getBoundingClientRect();
+      containerRectRef.current = { left: box.left, width: box.width };
+    }
     updateFromClientX(e.clientX);
 
     const onPointerMove = (moveEvent: PointerEvent) => {
@@ -290,4 +301,4 @@ export function BeforeAfterSlider({ lang, theme = 'dark' }: BeforeAfterSliderPro
       </div>
     </div>
   );
-}
+});

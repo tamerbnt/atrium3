@@ -98,6 +98,14 @@
   will-change: transform, opacity;
 }
 
+.section-contain {
+  contain: layout style;
+}
+
+.section-contain-style {
+  contain: style;
+}
+
 @keyframes atriumSlideIn {
   0% {
     opacity: 0;

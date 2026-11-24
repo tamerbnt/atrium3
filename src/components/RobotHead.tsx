@@ -12,6 +12,9 @@ export interface RobotHeadProps {
   jawMaterial: THREE.Material;
   eyeMaterial: THREE.MeshStandardMaterial;
   rivetMaterial: THREE.Material;
+  socketMaterial?: THREE.Material;
+  gasketMaterial?: THREE.Material;
+  showEyeLight?: boolean;
   eyeGlowTexture?: THREE.Texture;
   logoMaterial?: THREE.Material;
   logoTexture?: THREE.Texture;
@@ -28,7 +31,6 @@ export interface RobotHeadHandle {
  * - Head articulates with agile yaw, pitch, and roll on a central spherical neck gimbal
  * - Base chassis floats with independent physical inertia, gyroscopic banking, and counter-rotation
  * - Glowing terracotta capsule eyes with radial gradient falloff and recessed dark socket bevel
- * - Dual dedicated eye point lights parented directly inside left & right eye transforms
  * - Multi-stage machined ear pods with dark anodized base collar and brushed metallic core
  */
 export const RobotHead = forwardRef<RobotHeadHandle, RobotHeadProps>(function RobotHead(
@@ -41,6 +43,9 @@ export const RobotHead = forwardRef<RobotHeadHandle, RobotHeadProps>(function Ro
     jawMaterial,
     eyeMaterial,
     rivetMaterial,
+    socketMaterial: sharedSocketMaterial,
+    gasketMaterial: sharedGasketMaterial,
+    showEyeLight = false,
     eyeGlowTexture,
     logoMaterial,
     logoTexture,
@@ -73,7 +78,7 @@ export const RobotHead = forwardRef<RobotHeadHandle, RobotHeadProps>(function Ro
     },
   }));
 
-  // Unique per-instance eye, socket, and gasket materials
+  // Unique per-instance eye/pupil materials; reuse shared socket/gasket materials when provided
   const {
     localEyeMaterial,
     localPupilMaterial,
@@ -98,19 +103,21 @@ export const RobotHead = forwardRef<RobotHeadHandle, RobotHeadProps>(function Ro
       metalness: 0.0,
     });
 
-    // Dark recessed lens socket bevel / aperture frame
-    const sockMat = new THREE.MeshPhysicalMaterial({
-      color: new THREE.Color('#0d0f14'),
-      metalness: 0.88,
-      roughness: 0.55,
-      clearcoat: 0.4,
-      clearcoatRoughness: 0.25,
-    });
+    const sockMat =
+      sharedSocketMaterial ??
+      new THREE.MeshPhysicalMaterial({
+        color: new THREE.Color('#0d0f14'),
+        metalness: 0.88,
+        roughness: 0.55,
+        clearcoat: 0.4,
+        clearcoatRoughness: 0.25,
+      });
 
-    // Dark recessed gasket for the head-jaw panel seam and neck socket
-    const gasMat = new THREE.MeshBasicMaterial({
-      color: new THREE.Color('#06070a'),
-    });
+    const gasMat =
+      sharedGasketMaterial ??
+      new THREE.MeshBasicMaterial({
+        color: new THREE.Color('#06070a'),
+      });
 
     return {
       localEyeMaterial: eyeMat,
@@ -118,7 +125,7 @@ export const RobotHead = forwardRef<RobotHeadHandle, RobotHeadProps>(function Ro
       socketMaterial: sockMat,
       gasketMaterial: gasMat,
     };
-  }, [eyeMaterial, eyeGlowTexture]);
+  }, [eyeMaterial, eyeGlowTexture, sharedSocketMaterial, sharedGasketMaterial]);
 
   // Shared or fallback logo material
   const activeLogoMaterial = useMemo(() => {
@@ -141,13 +148,17 @@ export const RobotHead = forwardRef<RobotHeadHandle, RobotHeadProps>(function Ro
     });
   }, [logoMaterial, logoTexture]);
 
-  // Clean up cloned and generated materials on unmount
+  // Clean up cloned and owned generated materials on unmount
   React.useEffect(() => {
     return () => {
       localEyeMaterial.dispose();
       localPupilMaterial.dispose();
-      socketMaterial.dispose();
-      gasketMaterial.dispose();
+      if (!sharedSocketMaterial) {
+        socketMaterial.dispose();
+      }
+      if (!sharedGasketMaterial) {
+        gasketMaterial.dispose();
+      }
       if (!logoMaterial && activeLogoMaterial) {
         activeLogoMaterial.dispose();
       }
@@ -157,6 +168,8 @@ export const RobotHead = forwardRef<RobotHeadHandle, RobotHeadProps>(function Ro
     localPupilMaterial,
     socketMaterial,
     gasketMaterial,
+    sharedSocketMaterial,
+    sharedGasketMaterial,
     logoMaterial,
     activeLogoMaterial,
   ]);
@@ -504,16 +517,18 @@ export const RobotHead = forwardRef<RobotHeadHandle, RobotHeadProps>(function Ro
           receiveShadow={false}
         />
 
-        {/* CENTERED EYE GLOW POINT LIGHT (Strictly parented inside headGroupRef) */}
-        <pointLight
-          ref={eyeLightRef}
-          position={[0, eyeY, eyeZ + 0.024 * scale]}
-          color="#ff6a38"
-          intensity={0.48}
-          distance={0.55 * scale}
-          decay={2}
-          castShadow={false}
-        />
+        {/* CENTERED EYE GLOW POINT LIGHT (Only on primary hero head to save per-pixel light loops) */}
+        {showEyeLight && (
+          <pointLight
+            ref={eyeLightRef}
+            position={[0, eyeY, eyeZ + 0.024 * scale]}
+            color="#ff6a38"
+            intensity={0.48}
+            distance={0.55 * scale}
+            decay={2}
+            castShadow={false}
+          />
+        )}
 
         {/* MULTI-STAGE MACHINED EAR PODS */}
         {/* Left Ear Assembly */}

@@ -1,5 +1,5 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { computeCounterValue } from '../utils/scrollLogic';
+import React, { useEffect, useRef, memo } from 'react';
+import { computeCounterValue, formatCounterValue } from '../utils/scrollLogic';
 
 interface AnimatedCounterProps {
   end: number;
@@ -14,9 +14,10 @@ interface AnimatedCounterProps {
 
 /**
  * AnimatedCounter
- * Smoothly interpolates from 0 to end value when element scrolls into view.
+ * Smoothly interpolates from 0 to end value when element scrolls into view,
+ * updating the text node directly inside rAF without triggering React re-renders.
  */
-export function AnimatedCounter({
+export const AnimatedCounter = memo(function AnimatedCounter({
   end,
   duration = 1400,
   delay = 220,
@@ -26,7 +27,6 @@ export function AnimatedCounter({
   decimals = 0,
   className = '',
 }: AnimatedCounterProps) {
-  const [count, setCount] = useState(0);
   const hasAnimatedRef = useRef(false);
   const elementRef = useRef<HTMLSpanElement>(null);
 
@@ -41,6 +41,12 @@ export function AnimatedCounter({
     let timer: ReturnType<typeof setTimeout> | null = null;
     let rafId: number | null = null;
 
+    const writeValue = (val: number) => {
+      if (elementRef.current) {
+        elementRef.current.textContent = `${prefix}${formatCounterValue(val, decimals, separator)}${suffix}`;
+      }
+    };
+
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting && !hasAnimatedRef.current) {
@@ -48,7 +54,7 @@ export function AnimatedCounter({
           observer.disconnect();
 
           if (prefersReducedMotion || duration <= 0) {
-            setCount(end);
+            writeValue(end);
             return;
           }
 
@@ -59,12 +65,12 @@ export function AnimatedCounter({
             const elapsed = timestamp - startTime;
             const currentVal = computeCounterValue(end, elapsed, duration);
 
-            setCount(currentVal);
+            writeValue(currentVal);
 
             if (elapsed < duration) {
               rafId = requestAnimationFrame(step);
             } else {
-              setCount(end);
+              writeValue(end);
             }
           };
 
@@ -82,17 +88,14 @@ export function AnimatedCounter({
       if (timer) clearTimeout(timer);
       if (rafId !== null) cancelAnimationFrame(rafId);
     };
-  }, [end, duration, delay]);
-
-  const formattedNumber = count
-    .toFixed(decimals)
-    .replace(/\B(?=(\d{3})+(?!\d))/g, separator);
+  }, [end, duration, delay, prefix, suffix, separator, decimals]);
 
   return (
     <span ref={elementRef} className={className}>
       {prefix}
-      {formattedNumber}
+      {formatCounterValue(0, decimals, separator)}
       {suffix}
     </span>
   );
-}
+});
+

@@ -7,6 +7,7 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { RobotHead, RobotHeadHandle } from './RobotHead';
 import { CAMERA_WAYPOINTS } from '../types/cameraWaypoints';
 import { probeWebGLCapabilities } from '../utils/deviceDetection';
+import { capDevicePixelRatio, shouldRenderHeroScene } from '../utils/scrollLogic';
 import {
   createBakedEnvironmentTexture,
   createBrushedMetalTexture,
@@ -25,7 +26,8 @@ gsap.registerPlugin(ScrollTrigger);
 interface Scene3DProps {
   isMobile: boolean;
   isSoftwareGl?: boolean;
-  isInView: boolean;
+  isInView?: boolean;
+  onInViewChange?: (inView: boolean) => void;
   scrollProgress?: number;
   activeWaypointIndex?: number;
   onStatsUpdate?: (stats: { fps: number; drawCalls: number; triangles: number }) => void;
@@ -91,13 +93,18 @@ export const MOBILE_ROBOT_CONFIGS = [
 
 export const ROBOT_CONFIGS = DESKTOP_ROBOT_CONFIGS;
 
-function SoftwareGlPacer({ active }: { active: boolean }) {
+function SoftwareGlPacer({
+  activeRef,
+  wakeRef,
+}: {
+  activeRef: React.MutableRefObject<boolean>;
+  wakeRef: React.MutableRefObject<(() => void) | null>;
+}) {
   const { gl, invalidate } = useThree();
 
   useEffect(() => {
-    if (!active) return;
-
     let cancelled = false;
+    let running = false;
     let timerId = 0;
 
     const afterDraw = (cb: () => void) => {
@@ -111,6 +118,7 @@ function SoftwareGlPacer({ active }: { active: boolean }) {
       const poll = () => {
         if (cancelled) {
           if (sync) rawGl.deleteSync(sync);
+          running = false;
           return;
         }
         const state = sync ? rawGl.getSyncParameter(sync, rawGl.SYNC_STATUS) : rawGl.SIGNALED;
@@ -125,20 +133,38 @@ function SoftwareGlPacer({ active }: { active: boolean }) {
     };
 
     const tick = () => {
-      if (cancelled) return;
+      if (cancelled || !activeRef.current) {
+        running = false;
+        return;
+      }
+      running = true;
       invalidate();
       requestAnimationFrame(() => {
-        if (!cancelled) afterDraw(tick);
+        if (!cancelled && activeRef.current) {
+          afterDraw(tick);
+        } else {
+          running = false;
+        }
       });
     };
 
-    tick();
+    wakeRef.current = () => {
+      if (!cancelled && activeRef.current && !running) {
+        tick();
+      }
+    };
+
+    if (activeRef.current) {
+      tick();
+    }
 
     return () => {
       cancelled = true;
+      running = false;
+      wakeRef.current = null;
       window.clearTimeout(timerId);
     };
-  }, [active, gl, invalidate]);
+  }, [activeRef, wakeRef, gl, invalidate]);
 
   return null;
 }
@@ -149,18 +175,54 @@ function SoftwareGlPacer({ active }: { active: boolean }) {
 function SceneContent({
   isMobile,
   isSoftwareGl,
-  isInView,
+  isInViewProp,
+  onInViewChange,
   activeWaypointIndex = 0,
   onStatsUpdate,
 }: {
   isMobile: boolean;
   isSoftwareGl: boolean;
-  isInView: boolean;
+  isInViewProp?: boolean;
+  onInViewChange?: (inView: boolean) => void;
   activeWaypointIndex?: number;
   scrollProgress?: number;
   onStatsUpdate?: (stats: { fps: number; drawCalls: number; triangles: number }) => void;
 }) {
-  const { gl, scene, pointer, camera, viewport } = useThree();
+  const { gl, scene, pointer, camera, viewport, setFrameloop } = useThree();
+  const isInViewRef = useRef(isInViewProp ?? true);
+  const pacerWakeRef = useRef<(() => void) | null>(null);
+
+  // Sync imperative frameloop when parent explicitly passes isInViewProp
+  useEffect(() => {
+    if (isInViewProp === undefined) return;
+    isInViewRef.current = isInViewProp;
+    setFrameloop(isInViewProp && !isSoftwareGl ? 'always' : 'demand');
+    if (isInViewProp && isSoftwareGl) {
+      pacerWakeRef.current?.();
+    }
+  }, [isInViewProp, isSoftwareGl, setFrameloop]);
+
+  // Passive scroll visibility listener: toggles R3F frameloop imperatively with zero React re-renders
+  useEffect(() => {
+    if (isMobile || isInViewProp !== undefined) return;
+    let lastInView = true;
+    const handleScrollVisibility = () => {
+      const scrollY = window.scrollY || document.documentElement.scrollTop;
+      const next = shouldRenderHeroScene(scrollY, window.innerHeight);
+      if (next !== lastInView) {
+        lastInView = next;
+        isInViewRef.current = next;
+        setFrameloop(next && !isSoftwareGl ? 'always' : 'demand');
+        if (next && isSoftwareGl) {
+          pacerWakeRef.current?.();
+        }
+        onInViewChange?.(next);
+      }
+    };
+    window.addEventListener('scroll', handleScrollVisibility, { passive: true });
+    handleScrollVisibility();
+    return () => window.removeEventListener('scroll', handleScrollVisibility);
+  }, [isMobile, isInViewProp, isSoftwareGl, setFrameloop, onInViewChange]);
 
   // Head component handle references
   const head1Ref = useRef<RobotHeadHandle>(null);
@@ -439,6 +501,23 @@ function SceneContent({
     });
   }, [logoTex]);
 
+  // Shared recessed lens socket bevel and gasket materials across all 4 robot heads
+  const socketMaterial = useMemo(() => {
+    return new THREE.MeshPhysicalMaterial({
+      color: new THREE.Color('#0d0f14'),
+      metalness: 0.88,
+      roughness: 0.55,
+      clearcoat: 0.4,
+      clearcoatRoughness: 0.25,
+    });
+  }, []);
+
+  const gasketMaterial = useMemo(() => {
+    return new THREE.MeshBasicMaterial({
+      color: new THREE.Color('#06070a'),
+    });
+  }, []);
+
   // Cleanup all GPU textures and materials on unmount
   useEffect(() => {
     return () => {
@@ -456,6 +535,8 @@ function SceneContent({
       eyeMaterial.dispose();
       distantEyeMaterial.dispose();
       rivetMaterial.dispose();
+      socketMaterial.dispose();
+      gasketMaterial.dispose();
       terracottaFlatSpaceMaterial.dispose();
       logoMaterial.dispose();
     };
@@ -474,6 +555,8 @@ function SceneContent({
     eyeMaterial,
     distantEyeMaterial,
     rivetMaterial,
+    socketMaterial,
+    gasketMaterial,
     terracottaFlatSpaceMaterial,
     logoMaterial,
   ]);
@@ -650,6 +733,9 @@ function SceneContent({
               }
               eyeMaterial={index === 3 ? distantEyeMaterial : eyeMaterial}
               rivetMaterial={rivetMaterial}
+              socketMaterial={socketMaterial}
+              gasketMaterial={gasketMaterial}
+              showEyeLight={index === 0}
               eyeGlowTexture={eyeGlowTex}
               logoMaterial={logoMaterial}
               logoTexture={logoTex}
@@ -659,40 +745,37 @@ function SceneContent({
         </group>
       </group>
 
-      {/* Selective Bloom Post-Processing Pass (hardware GPU desktop only) */}
+      {/* Selective Bloom Post-Processing Pass (hardware GPU desktop only, half-res mipmap blur) */}
       {!isMobile && !isSoftwareGl && (
-        <EffectComposer multisampling={0}>
+        <EffectComposer multisampling={0} resolutionScale={0.5}>
           <Bloom
             luminanceThreshold={1.2}
             luminanceSmoothing={0.25}
             intensity={0.8}
             mipmapBlur
+            levels={4}
             radius={0.35}
           />
         </EffectComposer>
       )}
 
-      {isSoftwareGl && <SoftwareGlPacer active={isInView} />}
+      {isSoftwareGl && <SoftwareGlPacer activeRef={isInViewRef} wakeRef={pacerWakeRef} />}
     </>
   );
 }
 
 /**
- * Main 3D Scene Wrapper with IntersectionObserver and DPR Cap
+ * Main 3D Scene Wrapper with imperative frameloop pausing and DPR Cap
  */
 export default function Scene3D({
   isMobile,
   isSoftwareGl: isSoftwareGlProp,
-  isInView,
+  isInView: isInViewProp,
+  onInViewChange,
   scrollProgress,
   activeWaypointIndex = 0,
   onStatsUpdate,
 }: Scene3DProps) {
-  // Completely delete the 3D scene, robots, floor and animations on mobile
-  if (isMobile) {
-    return null;
-  }
-
   const isSoftwareGl = useMemo(
     () => isSoftwareGlProp ?? probeWebGLCapabilities().isSoftwareGl,
     [isSoftwareGlProp]
@@ -700,10 +783,8 @@ export default function Scene3D({
 
   const dpr = useMemo(() => {
     if (typeof window === 'undefined') return 1;
-    if (isSoftwareGl) return 1;
-    // Cap desktop DPR to 2x and mobile to 1.5x
-    return Math.min(window.devicePixelRatio || 1, isMobile ? 1.5 : 2);
-  }, [isMobile, isSoftwareGl]);
+    return capDevicePixelRatio(window.devicePixelRatio || 1, isSoftwareGl);
+  }, [isSoftwareGl]);
 
   // Check if developer requested r3f-perf overlay via URL param '?perf=true' or hash '#perf'
   const [showDevPerf, setShowDevPerf] = useState(false);
@@ -716,6 +797,11 @@ export default function Scene3D({
     }
   }, []);
 
+  // Completely delete the 3D scene, robots, floor and animations on mobile
+  if (isMobile) {
+    return null;
+  }
+
   return (
     <div className="w-full h-full relative pointer-events-none select-none">
       <Canvas
@@ -727,7 +813,7 @@ export default function Scene3D({
         }}
         dpr={dpr}
         shadows={false} // Performance: Zero dynamic shadow maps
-        frameloop={isInView && !isSoftwareGl ? 'always' : 'demand'}
+        frameloop={!isSoftwareGl ? 'always' : 'demand'}
         gl={{
           antialias: !isMobile && !isSoftwareGl,
           powerPreference: 'high-performance',
@@ -747,7 +833,8 @@ export default function Scene3D({
         <SceneContent
           isMobile={isMobile}
           isSoftwareGl={isSoftwareGl}
-          isInView={isInView}
+          isInViewProp={isInViewProp}
+          onInViewChange={onInViewChange}
           activeWaypointIndex={activeWaypointIndex}
           scrollProgress={scrollProgress}
           onStatsUpdate={onStatsUpdate}

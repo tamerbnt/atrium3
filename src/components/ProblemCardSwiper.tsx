@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, memo } from 'react';
 import { ChevronLeft, ChevronRight, Pause, AlertCircle, ShieldAlert, CheckCircle2, ArrowRight } from 'lucide-react';
 import { Language } from '../content/copy';
 import { UI_COPY } from '../content/uiCopy';
@@ -15,7 +15,7 @@ interface ProblemCardSwiperProps {
   lang?: Language;
 }
 
-export function ProblemCardSwiper({
+export const ProblemCardSwiper = memo(function ProblemCardSwiper({
   points = [],
   autoPlayInterval = 4400,
   lang = 'en',
@@ -24,35 +24,38 @@ export function ProblemCardSwiper({
   const [activeIndex, setActiveIndex] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
   const [isAutoPlayEnabled, setIsAutoPlayEnabled] = useState(true);
-  const [isInView, setIsInView] = useState(false);
+  const isInViewRef = useRef(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Touch gesture state
   const touchStartXRef = useRef<number | null>(null);
   const touchDeltaXRef = useRef<number>(0);
 
-  // Pause autoplay when off-screen
+  // Pause autoplay when off-screen without causing React state re-renders on scroll
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
     const observer = new IntersectionObserver(
-      ([entry]) => setIsInView(entry.isIntersecting),
+      ([entry]) => {
+        isInViewRef.current = entry.isIntersecting;
+      },
       { rootMargin: '150px' }
     );
     observer.observe(el);
     return () => observer.disconnect();
   }, []);
 
-  // Auto-play timer (active only while visible)
+  // Auto-play timer (checks visibility ref without re-subscribing on scroll)
   useEffect(() => {
-    if (!isInView || !isAutoPlayEnabled || isHovered || count <= 1) return;
+    if (!isAutoPlayEnabled || isHovered || count <= 1) return;
 
     const timer = setInterval(() => {
+      if (!isInViewRef.current) return;
       setActiveIndex((prev) => (prev + 1) % count);
     }, autoPlayInterval);
 
     return () => clearInterval(timer);
-  }, [isInView, isAutoPlayEnabled, isHovered, count, autoPlayInterval]);
+  }, [isAutoPlayEnabled, isHovered, count, autoPlayInterval]);
 
   const handleNext = useCallback(() => {
     setActiveIndex((prev) => (prev + 1) % count);
@@ -122,7 +125,7 @@ export function ProblemCardSwiper({
         <SpotlightCard
           spotlightColor="rgba(239, 68, 68, 0.22)"
           borderColor="rgba(255, 255, 255, 0.15)"
-          className="group w-full h-full p-6 sm:p-8 bg-stone-950/95 border border-white/10 rounded-3xl shadow-[0_20px_60px_rgba(0,0,0,0.6)] flex flex-col justify-between transition-all duration-300 text-left rtl:text-right"
+          className="group w-full h-full p-6 sm:p-8 bg-stone-950/95 border border-white/10 rounded-3xl shadow-[0_12px_28px_rgba(0,0,0,0.55)] flex flex-col justify-between transition-all duration-300 text-left rtl:text-right"
         >
           {/* Card Top Header */}
           <div key={`prob-body-${activeIndex}`} className="animate-slide-in">
@@ -262,4 +265,4 @@ export function ProblemCardSwiper({
       </div>
     </div>
   );
-}
+});

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo, useMemo } from 'react';
 
 interface WordMaskTextProps {
   text: string;
@@ -16,14 +16,14 @@ interface WordMaskTextProps {
  * Preserves spaces between words so line wrapping and Arabic (RTL) word order
  * & ligature shaping inside each word remain 100% intact.
  */
-export function WordMaskText({
+export const WordMaskText = memo(function WordMaskText({
   text,
   className = '',
   maskClassName = '',
   wordClassName = '',
   groupClassName = '',
 }: WordMaskTextProps) {
-  const words = text.trim().split(/\s+/).filter(Boolean);
+  const words = useMemo(() => text.trim().split(/\s+/).filter(Boolean), [text]);
 
   if (words.length === 0) {
     return null;
@@ -47,6 +47,7 @@ export function WordMaskText({
       ))}
     </span>
   );
-}
+});
 
 export default WordMaskText;
+

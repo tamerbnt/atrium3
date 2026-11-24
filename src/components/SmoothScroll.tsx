@@ -5,6 +5,7 @@ import React, {
   useRef,
   useState,
   useCallback,
+  useMemo,
   ReactNode,
 } from 'react';
 import Lenis, { LenisOptions, ScrollToOptions } from 'lenis';
@@ -159,20 +160,18 @@ export function SmoothScroll({
     lenisRef.current?.start();
   }, []);
 
-  const contextValue = useRef<SmoothScrollContextValue>({
-    lenis: null,
-    scrollTo,
-    stop,
-    start,
-  });
-
-  contextValue.current.lenis = lenisInstance;
-  contextValue.current.scrollTo = scrollTo;
-  contextValue.current.stop = stop;
-  contextValue.current.start = start;
+  const contextValue = useMemo<SmoothScrollContextValue>(
+    () => ({
+      lenis: lenisInstance,
+      scrollTo,
+      stop,
+      start,
+    }),
+    [lenisInstance, scrollTo, stop, start]
+  );
 
   return (
-    <SmoothScrollContext.Provider value={contextValue.current}>
+    <SmoothScrollContext.Provider value={contextValue}>
       <div className={`smooth-scroll-wrapper ${className}`}>{children}</div>
     </SmoothScrollContext.Provider>
   );

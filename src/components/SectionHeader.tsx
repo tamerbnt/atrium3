@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { LucideIcon, Calendar } from 'lucide-react';
 import { WordMaskText } from './WordMaskText';
 
@@ -29,7 +29,7 @@ interface SectionHeaderProps {
  * - Optional CTA button placed exactly beneath the text header
  * - Optional maskedHorizon prop enables word-by-word architectural clipping masks for the horizon rise effect
  */
-export function SectionHeader({
+export const SectionHeader = memo(function SectionHeader({
   icon: Icon,
   tag,
   primary,
@@ -187,4 +187,4 @@ export function SectionHeader({
       )}
     </div>
   );
-}
+});

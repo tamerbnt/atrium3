@@ -5,6 +5,7 @@
 
 import React, { useState, useEffect, useRef, useCallback, useMemo, Suspense, lazy } from 'react';
 import { detectDeviceCapabilities } from './utils/deviceDetection';
+import { capDevicePixelRatio } from './utils/scrollLogic';
 import { SceneMode } from './types';
 import { Language } from './content/copy';
 import StaticFallback from './components/StaticFallback';
@@ -26,7 +27,7 @@ export default function App() {
   const [deviceProfile, setDeviceProfile] = useState(() => detectDeviceCapabilities());
   const [activeMode, setActiveMode] = useState<SceneMode>('3d');
   const [isHydrated, setIsHydrated] = useState(false);
-  const [isInView, setIsInView] = useState(true);
+  const [debugIsInView, setDebugIsInView] = useState(true);
   const [showDebugHud, setShowDebugHud] = useState(false);
   const [stats, setStats] = useState<{ fps: number; drawCalls: number; triangles: number }>({
     fps: 60,
@@ -42,39 +43,27 @@ export default function App() {
     document.documentElement.lang = lang;
   }, [lang]);
 
-  // Mark hydrated on client mount and update capabilities on resize
+  // Mark hydrated on client mount and update capabilities on resize only when profile flags change
   useEffect(() => {
     setIsHydrated(true);
     const updateProfile = () => {
       const nextProfile = detectDeviceCapabilities();
-      setDeviceProfile(nextProfile);
-      // When viewport is desktop and hero is in view, ensure isInView is immediately true
-      if (!nextProfile.isMobile) {
-        const scrollY = window.scrollY || document.documentElement.scrollTop;
-        if (scrollY < window.innerHeight) {
-          setIsInView(true);
+      setDeviceProfile((prev) => {
+        if (
+          prev.isMobile === nextProfile.isMobile &&
+          prev.isSoftwareGl === nextProfile.isSoftwareGl &&
+          prev.reason === nextProfile.reason
+        ) {
+          return prev;
         }
-      }
+        return nextProfile;
+      });
     };
     updateProfile();
 
     window.addEventListener('resize', updateProfile, { passive: true });
     return () => window.removeEventListener('resize', updateProfile);
   }, []);
-
-  // Pause R3F render loop when 3D hero is covered by Section 1.5 or off-screen
-  useEffect(() => {
-    const handleScrollVisibility = () => {
-      const scrollY = window.scrollY || document.documentElement.scrollTop;
-      const windowH = window.innerHeight;
-      // Freeze 3D render loop completely when Section 1.5 curtain has risen over the hero
-      setIsInView(scrollY < windowH * 0.98);
-    };
-
-    window.addEventListener('scroll', handleScrollVisibility, { passive: true });
-    handleScrollVisibility();
-    return () => window.removeEventListener('scroll', handleScrollVisibility);
-  }, [isHydrated, deviceProfile.isMobile]);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -86,9 +75,7 @@ export default function App() {
   }, []);
 
   const dpr = typeof window !== 'undefined'
-    ? deviceProfile.isSoftwareGl
-      ? 1
-      : Math.min(window.devicePixelRatio || 1, 2)
+    ? capDevicePixelRatio(window.devicePixelRatio || 1, deviceProfile.isSoftwareGl)
     : 1;
 
   const [activeWaypointIndex, setActiveWaypointIndex] = useState(0);
@@ -101,6 +88,7 @@ export default function App() {
     (newStats: { fps: number; drawCalls: number; triangles: number }) => setStats(newStats),
     []
   );
+  const handleDebugInViewChange = useCallback((inView: boolean) => setDebugIsInView(inView), []);
 
   const hero3DNode = useMemo(
     () =>
@@ -112,7 +100,7 @@ export default function App() {
                 key="atrium-3d-scene"
                 isMobile={false}
                 isSoftwareGl={deviceProfile.isSoftwareGl}
-                isInView={isInView}
+                onInViewChange={showDebugHud ? handleDebugInViewChange : undefined}
                 scrollProgress={0}
                 activeWaypointIndex={activeWaypointIndex}
                 onStatsUpdate={showDebugHud ? handleStatsUpdate : undefined}
@@ -133,10 +121,10 @@ export default function App() {
       deviceProfile.isSoftwareGl,
       deviceProfile.reason,
       activeMode,
-      isInView,
       activeWaypointIndex,
       showDebugHud,
       handleStatsUpdate,
+      handleDebugInViewChange,
     ]
   );
 
@@ -163,7 +151,7 @@ export default function App() {
               drawCalls={stats.drawCalls}
               triangles={stats.triangles}
               dpr={dpr}
-              isInView={isInView}
+              isInView={debugIsInView}
               activeMode={activeMode}
               onToggleMode={(mode) => setActiveMode(mode)}
               isMobile={deviceProfile.isMobile}

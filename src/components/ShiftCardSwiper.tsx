@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, memo } from 'react';
 import { ChevronLeft, ChevronRight, Pause, Sparkles, CheckCircle2, ArrowRight, XCircle } from 'lucide-react';
 import { Language } from '../content/copy';
 import { UI_COPY } from '../content/uiCopy';
@@ -16,7 +16,7 @@ interface ShiftCardSwiperProps {
   lang?: Language;
 }
 
-export function ShiftCardSwiper({
+export const ShiftCardSwiper = memo(function ShiftCardSwiper({
   points = [],
   autoPlayInterval = 4400,
   theme = 'light',
@@ -26,35 +26,38 @@ export function ShiftCardSwiper({
   const [activeIndex, setActiveIndex] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
   const [isAutoPlayEnabled, setIsAutoPlayEnabled] = useState(true);
-  const [isInView, setIsInView] = useState(false);
+  const isInViewRef = useRef(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Touch gesture state
   const touchStartXRef = useRef<number | null>(null);
   const touchDeltaXRef = useRef<number>(0);
 
-  // Pause autoplay when off-screen
+  // Pause autoplay when off-screen without causing React state re-renders on scroll
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
     const observer = new IntersectionObserver(
-      ([entry]) => setIsInView(entry.isIntersecting),
+      ([entry]) => {
+        isInViewRef.current = entry.isIntersecting;
+      },
       { rootMargin: '150px' }
     );
     observer.observe(el);
     return () => observer.disconnect();
   }, []);
 
-  // Auto-play timer (active only while visible)
+  // Auto-play timer (checks visibility ref without re-subscribing on scroll)
   useEffect(() => {
-    if (!isInView || !isAutoPlayEnabled || isHovered || count <= 1) return;
+    if (!isAutoPlayEnabled || isHovered || count <= 1) return;
 
     const timer = setInterval(() => {
+      if (!isInViewRef.current) return;
       setActiveIndex((prev) => (prev + 1) % count);
     }, autoPlayInterval);
 
     return () => clearInterval(timer);
-  }, [isInView, isAutoPlayEnabled, isHovered, count, autoPlayInterval]);
+  }, [isAutoPlayEnabled, isHovered, count, autoPlayInterval]);
 
   const handleNext = useCallback(() => {
     setActiveIndex((prev) => (prev + 1) % count);
@@ -132,7 +135,7 @@ export function ShiftCardSwiper({
         <SpotlightCard
           spotlightColor={isLight ? 'rgba(184, 84, 56, 0.12)' : 'rgba(224, 107, 72, 0.22)'}
           borderColor={isLight ? 'rgba(184, 84, 56, 0.4)' : 'rgba(224, 107, 72, 0.5)'}
-          className={`group w-full h-full p-6 sm:p-8 rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.06)] flex flex-col justify-between transition-all duration-300 text-left rtl:text-right ${
+          className={`group w-full h-full p-6 sm:p-8 rounded-3xl shadow-[0_12px_28px_rgba(0,0,0,0.06)] flex flex-col justify-between transition-all duration-300 text-left rtl:text-right ${
             isLight
               ? 'bg-white border border-stone-200 text-stone-900'
               : 'bg-stone-950/95 border border-stone-800 text-white'
@@ -326,4 +329,4 @@ export function ShiftCardSwiper({
       </div>
     </div>
   );
-}
+});
